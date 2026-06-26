@@ -10,4 +10,6 @@ declare global {
 	}
 }
 
+/// <reference types="unplugin-icons/types/svelte5" />
+
 export {};

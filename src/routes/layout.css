@@ -1,1 +1,104 @@
 @import 'tailwindcss';
+
+@theme {
+	--font-display: 'Bricolage Grotesque', sans-serif;
+	--font-body: 'Schibsted Grotesk', sans-serif;
+	--font-mono: 'Space Mono', monospace;
+	--font-num: 'Bricolage Grotesque', sans-serif;
+}
+
+:root {
+	--accent-green: #44d07b;
+	--accent-amber: #f2a73c;
+	--accent-blue: #54b8e8;
+	--accent: var(--accent-green);
+
+	--bg: #14181c;
+	--bg-1: #181d23;
+	--bg-2: #1b212833;
+	--bg-card: #181e24;
+	--border: rgba(255, 255, 255, 0.075);
+	--border-2: rgba(255, 255, 255, 0.13);
+	--text: #e9eef2;
+	--text-muted: #8b9aa8;
+	--text-dim: #5f6e7b;
+	--bar-track: rgba(255, 255, 255, 0.055);
+	--star-empty: rgba(255, 255, 255, 0.15);
+}
+
+html[data-bg='black'] {
+	--bg: #0b0c0d;
+	--bg-1: #111315;
+	--bg-card: #121417;
+	--border: rgba(255, 255, 255, 0.07);
+	--bar-track: rgba(255, 255, 255, 0.05);
+	--text: #eef1f4;
+	--text-muted: #828f9b;
+	--text-dim: #586470;
+}
+
+html[data-bg='warm'] {
+	--bg: #16130e;
+	--bg-1: #1c1812;
+	--bg-card: #1b1711;
+	--border: rgba(255, 240, 220, 0.085);
+	--border-2: rgba(255, 240, 220, 0.15);
+	--bar-track: rgba(255, 240, 220, 0.06);
+	--text: #efe9df;
+	--text-muted: #a89a86;
+	--text-dim: #7a6e5c;
+	--star-empty: rgba(255, 240, 220, 0.16);
+}
+
+html[data-identity='amber'] {
+	--accent: var(--accent-amber);
+}
+html[data-identity='blue'] {
+	--accent: var(--accent-blue);
+}
+html[data-type='clean'] {
+	--font-display: 'Schibsted Grotesk', sans-serif;
+	--font-num: 'Schibsted Grotesk', sans-serif;
+}
+html[data-type='mono'] {
+	--font-num: 'Space Mono', monospace;
+	--font-display: 'Schibsted Grotesk', sans-serif;
+}
+
+*,
+*::before,
+*::after {
+	box-sizing: border-box;
+}
+
+html,
+body {
+	background: var(--bg);
+}
+
+body {
+	font-family: var(--font-body);
+	color: var(--text);
+	-webkit-font-smoothing: antialiased;
+	text-rendering: optimizeLegibility;
+	font-feature-settings:
+		'tnum' 1,
+		'cv01' 1;
+}
+
+::selection {
+	background: color-mix(in oklab, var(--accent) 40%, transparent);
+}
+
+a {
+	text-decoration: none;
+	color: inherit;
+}
+
+button {
+	font-family: inherit;
+	cursor: pointer;
+	border: none;
+	background: none;
+	color: inherit;
+}

@@ -1,0 +1,384 @@
+<script lang="ts">
+	import { getContext } from 'svelte';
+	import type { dataset } from '$lib/pipeline/types';
+	import { computepeople, type personstat } from '$lib/stats/people';
+	import Card from '$lib/components/card.svelte';
+	import Infotip from '$lib/components/infotip.svelte';
+	import IconStarFilled from '~icons/tabler/star-filled';
+
+	const dsctx = getContext<{ data: dataset | null }>('dataset');
+	const stats = $derived(dsctx.data ? computepeople(dsctx.data) : null);
+
+	const TABS = ['Directors', 'Actors', 'Crew'] as const;
+	type Tab = (typeof TABS)[number];
+	let tab = $state<Tab>('Directors');
+	let expanded = $state(false);
+
+	$effect(() => {
+		tab;
+		expanded = false;
+	});
+
+	const rows = $derived.by(() => {
+		if (!stats) return [];
+		if (tab === 'Directors') return stats.directors;
+		if (tab === 'Actors') return stats.actors;
+		return stats.crew;
+	});
+
+	const allbycount = $derived(rows.slice().sort((a, b) => b.watched - a.watched));
+	const minthreshold = $derived(tab === 'Crew' ? 1 : 3);
+	const allbyrating = $derived(
+		rows
+			.slice()
+			.filter((r) => (r.ratedfilms ?? 0) >= minthreshold)
+			.sort((a, b) => b.avg - a.avg)
+	);
+	const tiptext = $derived(
+		tab === 'Crew'
+			? 'Only crew with at least 1 rated film are included.'
+			: `Only ${tab.toLowerCase()} with at least 3 rated films are included.`
+	);
+
+	const bycount = $derived(expanded ? allbycount : allbycount.slice(0, 10));
+	const byrating = $derived(expanded ? allbyrating : allbyrating.slice(0, 10));
+
+	const heroa = $derived(allbycount[0] ?? null);
+	const herob = $derived(allbyrating[0] ?? null);
+
+	const maxcount = $derived(Math.max(...bycount.map((r) => r.watched), 1));
+	const maxrating = $derived(Math.max(...byrating.map((r) => r.avg), 1));
+
+	/** initials from a full name */
+	function initials(name: string): string {
+		return name
+			.split(/\s+/)
+			.map((w) => w[0])
+			.join('')
+			.slice(0, 2)
+			.toUpperCase();
+	}
+</script>
+
+{#if !stats}
+	<div class="py-[60px] font-mono text-[13px]" style="color: var(--text-dim);">
+		No data — run the import pipeline first.
+	</div>
+{:else}
+	<div class="flex flex-col gap-[20px]">
+		<!-- tab bar -->
+		<div class="flex gap-0 border-b border-[var(--border)]">
+			{#each TABS as t (t)}
+				<button
+					class="text-[14px] px-[18px] py-[10px] -mb-px transition-colors"
+					style={tab === t
+						? 'font-weight: 600; color: var(--text); border-bottom: 2px solid var(--accent);'
+						: 'font-weight: 400; color: var(--text-muted); border-bottom: 2px solid transparent;'}
+					onclick={() => (tab = t)}>{t}</button
+				>
+			{/each}
+		</div>
+
+		<!-- hero row -->
+		<div class="grid grid-cols-3 gap-4">
+			<section
+				class="rounded-[14px] border border-[var(--border)] p-5 px-[22px] flex flex-col justify-center"
+				style="background: var(--bg-card);"
+			>
+				<div
+					class="font-mono text-[10.5px] tracking-[0.08em] uppercase mb-2"
+					style="color: var(--text-dim);"
+				>
+					{tab === 'Crew' ? 'Collaborators' : tab + ' watched'}
+				</div>
+				<div
+					class="font-display font-bold text-[52px] leading-none tracking-[-0.03em]"
+					style="color: var(--text);"
+				>
+					{rows.length}
+				</div>
+				<div class="text-[12.5px] mt-1" style="color: var(--text-muted);">
+					unique {tab.toLowerCase()}
+				</div>
+			</section>
+			<section
+				class="rounded-[14px] border border-[var(--border)] p-5 px-[22px] flex flex-col justify-center"
+				style="background: var(--bg-card);"
+			>
+				<div
+					class="font-mono text-[10.5px] tracking-[0.08em] uppercase mb-2"
+					style="color: var(--text-dim);"
+				>
+					Most watched
+				</div>
+				{#if heroa}
+					<div class="flex items-center gap-3 mb-1">
+						{#if heroa.photo}
+							<img
+								src={heroa.photo}
+								alt={heroa.name}
+								class="w-10 h-10 rounded-full object-cover shrink-0"
+								style="border: 1.5px solid var(--border-2);"
+							/>
+						{:else}
+							<div
+								class="w-10 h-10 rounded-full shrink-0 flex items-center justify-center font-mono text-[12px] font-bold"
+								style="background: color-mix(in oklab, var(--accent) 15%, var(--bg-1)); color: var(--accent); border: 1.5px solid var(--border);"
+							>
+								{initials(heroa.name)}
+							</div>
+						{/if}
+						<div
+							class="font-display font-bold text-[22px] leading-[1.1] tracking-[-0.02em] truncate"
+							style="color: var(--text);"
+						>
+							{heroa.name}
+						</div>
+					</div>
+					<div class="text-[12.5px]" style="color: var(--text-muted);">
+						{heroa.watched} films logged{heroa.filmcount ? ' · ' + heroa.filmcount + ' titles' : ''}
+					</div>
+				{/if}
+			</section>
+			<section
+				class="rounded-[14px] border border-[var(--border)] p-5 px-[22px] flex flex-col justify-center"
+				style="background: var(--bg-card);"
+			>
+				<div
+					class="font-mono text-[10.5px] tracking-[0.08em] uppercase mb-2"
+					style="color: var(--text-dim);"
+				>
+					Highest rated
+				</div>
+				{#if herob}
+					<div class="flex items-center gap-3 mb-1">
+						{#if herob.photo}
+							<img
+								src={herob.photo}
+								alt={herob.name}
+								class="w-10 h-10 rounded-full object-cover shrink-0"
+								style="border: 1.5px solid var(--border-2);"
+							/>
+						{:else}
+							<div
+								class="w-10 h-10 rounded-full shrink-0 flex items-center justify-center font-mono text-[12px] font-bold"
+								style="background: color-mix(in oklab, var(--accent-amber) 15%, var(--bg-1)); color: var(--accent-amber); border: 1.5px solid var(--border);"
+							>
+								{initials(herob.name)}
+							</div>
+						{/if}
+						<div
+							class="font-display font-bold text-[22px] leading-[1.1] tracking-[-0.02em] truncate"
+							style="color: var(--text);"
+						>
+							{herob.name}
+						</div>
+					</div>
+					<div class="text-[12.5px]" style="color: var(--text-muted);">
+						{herob.avg.toFixed(2)} avg rating{herob.role ? ' · ' + herob.role : ''}
+					</div>
+				{/if}
+			</section>
+		</div>
+
+		<!-- two lists -->
+		<div class="grid grid-cols-2 gap-[18px]">
+			<Card title="Most watched">
+				<div class="flex flex-col gap-[9px]">
+					{#each bycount as person, i (person.name + '|' + i)}
+						{@const w = Math.max(2, (person.watched / maxcount) * 100)}
+						<div
+							class="grid items-center gap-3"
+							style="grid-template-columns: auto 28px minmax(80px, 1fr) 1fr auto;"
+						>
+							<span class="font-mono text-[11px] w-[18px]" style="color: var(--text-dim);"
+								>{String(i + 1).padStart(2, '0')}</span
+							>
+							{#if person.photo}
+								<img
+									src={person.photo}
+									alt={person.name}
+									class="w-7 h-7 rounded-full object-cover"
+									style="border: 1px solid var(--border);"
+								/>
+							{:else}
+								<div
+									class="w-7 h-7 rounded-full flex items-center justify-center font-mono text-[9px] font-bold shrink-0"
+									style="background: color-mix(in oklab, var(--accent) 12%, var(--bg-1)); color: var(--accent);"
+								>
+									{initials(person.name)}
+								</div>
+							{/if}
+							<div class="flex flex-col min-w-0">
+								<span
+									class="text-[13.5px] font-medium truncate"
+									style="color: var(--text);"
+									title={person.name}>{person.name}</span
+								>
+								{#if person.role}
+									<span class="text-[11px]" style="color: var(--text-dim);">{person.role}</span>
+								{/if}
+							</div>
+							<span
+								class="h-[7px] rounded-full overflow-hidden"
+								style="background: var(--bar-track);"
+							>
+								<span
+									class="block h-full rounded-full transition-[width] duration-500"
+									style="width: {w}%; background: var(--accent);"
+								></span>
+							</span>
+							<span
+								class="font-mono text-[12.5px] font-bold min-w-[32px] flex items-center justify-end"
+								style="color: var(--text);">{person.watched}</span
+							>
+						</div>
+					{/each}
+				</div>
+				{#if allbycount.length > 10}
+					<div class="mt-3 pt-3 border-t border-[var(--border)] flex justify-center">
+						<button
+							class="font-mono text-[11px] tracking-[0.06em] uppercase transition-colors"
+							style="color: var(--text-dim);"
+							onmouseenter={(e) => ((e.currentTarget as HTMLElement).style.color = 'var(--text)')}
+							onmouseleave={(e) =>
+								((e.currentTarget as HTMLElement).style.color = 'var(--text-dim)')}
+							onclick={() => (expanded = !expanded)}
+							>{expanded ? '↑ show less' : '↓ show all ' + allbycount.length}</button
+						>
+					</div>
+				{/if}
+			</Card>
+
+			<Card title="Highest rated">
+				{#snippet actions()}
+					<Infotip text={tiptext} />
+				{/snippet}
+				<div class="flex flex-col gap-[9px]">
+					{#each byrating as person, i (person.name + '|' + i)}
+						{@const w = Math.max(2, (person.avg / maxrating) * 100)}
+						<div
+							class="grid items-center gap-3"
+							style="grid-template-columns: auto 28px minmax(80px, 1fr) 1fr auto;"
+						>
+							<span class="font-mono text-[11px] w-[18px]" style="color: var(--text-dim);"
+								>{String(i + 1).padStart(2, '0')}</span
+							>
+							{#if person.photo}
+								<img
+									src={person.photo}
+									alt={person.name}
+									class="w-7 h-7 rounded-full object-cover"
+									style="border: 1px solid var(--border);"
+								/>
+							{:else}
+								<div
+									class="w-7 h-7 rounded-full flex items-center justify-center font-mono text-[9px] font-bold shrink-0"
+									style="background: color-mix(in oklab, var(--accent-amber) 12%, var(--bg-1)); color: var(--accent-amber);"
+								>
+									{initials(person.name)}
+								</div>
+							{/if}
+							<div class="flex flex-col min-w-0">
+								<span
+									class="text-[13.5px] font-medium truncate"
+									style="color: var(--text);"
+									title={person.name}>{person.name}</span
+								>
+								{#if person.role}
+									<span class="text-[11px]" style="color: var(--text-dim);">{person.role}</span>
+								{/if}
+							</div>
+							<span
+								class="h-[7px] rounded-full overflow-hidden"
+								style="background: var(--bar-track);"
+							>
+								<span
+									class="block h-full rounded-full transition-[width] duration-500"
+									style="width: {w}%; background: var(--accent-amber);"
+								></span>
+							</span>
+							<span
+								class="font-mono text-[12.5px] font-bold min-w-[42px] flex items-center justify-end gap-0.5"
+								style="color: var(--text);"
+							>
+								{person.avg.toFixed(1)}
+								<IconStarFilled width="11" height="11" class="text-[var(--accent-amber)] shrink-0" />
+							</span>
+						</div>
+					{/each}
+				</div>
+				{#if allbyrating.length > 10}
+					<div class="mt-3 pt-3 border-t border-[var(--border)] flex justify-center">
+						<button
+							class="font-mono text-[11px] tracking-[0.06em] uppercase transition-colors"
+							style="color: var(--text-dim);"
+							onmouseenter={(e) => ((e.currentTarget as HTMLElement).style.color = 'var(--text)')}
+							onmouseleave={(e) =>
+								((e.currentTarget as HTMLElement).style.color = 'var(--text-dim)')}
+							onclick={() => (expanded = !expanded)}
+							>{expanded ? '↑ show less' : '↓ show all ' + allbyrating.length}</button
+						>
+					</div>
+				{/if}
+			</Card>
+		</div>
+
+		<!-- crew full table (crew tab only) -->
+		{#if tab === 'Crew' && stats.crew.length > 0}
+			<Card title="All crew">
+				<div class="flex flex-col">
+					<div
+						class="grid gap-3 pb-[10px] mb-1 border-b border-[var(--border)]"
+						style="grid-template-columns: 1fr 160px 64px 64px;"
+					>
+						{#each ['Name', 'Role', 'Films', 'Avg'] as h (h)}
+							<span
+								class="font-mono text-[10.5px] tracking-[0.08em] uppercase"
+								style="color: var(--text-dim);">{h}</span
+							>
+						{/each}
+					</div>
+					{#each stats.crew.slice().sort((a, b) => b.watched - a.watched) as c (c.name + '|' + c.role)}
+						<div
+							class="grid gap-3 py-[9px] border-b border-[var(--border)] items-center"
+							style="grid-template-columns: 1fr 160px 64px 64px;"
+						>
+							<div class="flex items-center gap-2 min-w-0">
+								{#if c.photo}
+									<img
+										src={c.photo}
+										alt={c.name}
+										class="w-6 h-6 rounded-full object-cover shrink-0"
+										style="border: 1px solid var(--border);"
+									/>
+								{:else}
+									<div
+										class="w-6 h-6 rounded-full shrink-0 flex items-center justify-center font-mono text-[8px] font-bold"
+										style="background: color-mix(in oklab, var(--accent) 12%, var(--bg-1)); color: var(--accent);"
+									>
+										{initials(c.name)}
+									</div>
+								{/if}
+								<span class="text-[13.5px] font-medium truncate" style="color: var(--text);"
+									>{c.name}</span
+								>
+							</div>
+							<span class="font-mono text-[11px]" style="color: var(--text-muted);">{c.role}</span>
+							<span class="font-mono text-[12px]" style="color: var(--text);">{c.watched}</span>
+							<span class="font-mono text-[12px]" style="color: var(--text-muted);"
+								>{c.avg.toFixed(1)}</span
+							>
+						</div>
+					{/each}
+				</div>
+			</Card>
+		{:else if tab === 'Crew' && stats.crew.length === 0}
+			<Card title="All crew">
+				<div class="py-8 text-center font-mono text-[12px]" style="color: var(--text-dim);">
+					Crew data available after re-enriching with TMDB
+				</div>
+			</Card>
+		{/if}
+	</div>
+{/if}
