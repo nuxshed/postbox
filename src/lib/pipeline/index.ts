@@ -2,7 +2,7 @@ import { unzipSync } from 'fflate';
 import { parseall, parseprofile } from './parse';
 import { enrichall } from './tmdb';
 import { loadstored, savestored, clearstored } from './store';
-import type { dataset } from './types';
+import type { dataset, enrichedfilm } from './types';
 
 export { clearstored };
 
@@ -33,11 +33,23 @@ export async function loadfromzip(
 	const { films, diary: diaryentries } = parseall(watched, ratings, diary);
 	onprogress(`parsed ${films.length} films, ${diaryentries.length} diary entries`);
 
-	onprogress('enriching with tmdb...', 0, films.length);
-	const enriched = await enrichall(films, (done, total) => {
-		onprogress('enriching with tmdb...', done, total);
+	const existing = loadstored();
+	const cache = new Map<string, enrichedfilm>();
+	if (existing) {
+		for (const ef of existing.films) {
+			if (ef.tmdb) cache.set(ef.uri, ef);
+		}
+	}
+
+	const toenrich = films.filter((f) => !cache.has(f.uri));
+	const fromcache = films.filter((f) => cache.has(f.uri)).map((f) => ({ ...cache.get(f.uri)!, ...f }));
+
+	onprogress('enriching with tmdb...', fromcache.length, films.length);
+	const fresh = await enrichall(toenrich, (done, total) => {
+		onprogress('enriching with tmdb...', fromcache.length + done, films.length);
 	});
 
+	const enriched = [...fromcache, ...fresh];
 	const data: dataset = { films: enriched, diary: diaryentries, profile, enrichedat: Date.now() };
 	savestored(data);
 	onprogress('done', films.length, films.length);
