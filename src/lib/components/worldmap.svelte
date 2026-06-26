@@ -8,8 +8,9 @@
 	type Props = {
 		data: CountryEntry[];
 		metric: string;
+		oncountryclick?: (name: string) => void;
 	};
-	let { data, metric }: Props = $props();
+	let { data, metric, oncountryclick }: Props = $props();
 
 	// ISO 3166-1 numeric → display name (must match world.ts countryname() output)
 	const ISO: Record<number, string> = {
@@ -160,9 +161,7 @@
 	}
 
 	onMount(async () => {
-		const world = await fetch(
-			'https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json'
-		).then((r) => r.json());
+		const world = await fetch('/countries-110m.json').then((r) => r.json());
 
 		const proj = geoNaturalEarth1().fitSize([W, H], { type: 'Sphere' } as any);
 		const pathgen = geoPath().projection(proj);
@@ -208,6 +207,10 @@
 				stroke={hovered === c.id ? 'rgba(255,255,255,0.28)' : 'rgba(255,255,255,0.09)'}
 				stroke-width={hovered === c.id ? 1 : 0.5}
 				style={getopacity(c.id) !== null ? 'cursor: pointer;' : ''}
+				onclick={() => {
+					const name = ISO[c.id];
+					if (name && datamap.has(name) && oncountryclick) oncountryclick(name);
+				}}
 				onmouseenter={() => {
 					hovered = c.id;
 					const name = ISO[c.id];

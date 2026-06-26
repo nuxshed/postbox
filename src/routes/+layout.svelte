@@ -82,6 +82,7 @@
 	const pagetitle = $derived(TITLES[pathname] ?? pathname.slice(1));
 	const isoverview = $derived(pathname === '/');
 	const ispipeline = $derived(pathname.startsWith('/pipeline'));
+	const isfilmdetail = $derived(pathname.startsWith('/films/') && pathname !== '/films');
 	const username = $derived(data?.profile?.name || data?.profile?.username || 'you');
 </script>
 
@@ -194,7 +195,8 @@
 			</div>
 		</header>
 
-		<!-- page head -->
+		<!-- page head (hidden for film detail pages) -->
+		{#if !isfilmdetail}
 		<div class="border-b border-[var(--border)]" style="background: var(--bg);">
 			<div
 				class="max-w-[1280px] mx-auto px-8 pt-[30px] pb-[22px] flex items-end justify-between gap-6"
@@ -299,9 +301,10 @@
 				</div>
 			</div>
 		</div>
+		{/if}
 
 		<!-- content -->
-		<main class="max-w-[1280px] mx-auto px-8 pt-7 pb-[60px] w-full flex-1">
+		<main class="max-w-[1280px] mx-auto px-8 pb-[60px] w-full flex-1 {isfilmdetail ? 'pt-0' : 'pt-7'}">
 			{@render children()}
 		</main>
 

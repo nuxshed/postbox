@@ -18,30 +18,33 @@
 	const dirrows = $derived(
 		stats
 			? dirmetric === 'count'
-				? stats.directors.slice(0, 8).map((d) => ({ label: d.name, value: d.watched }))
+				? stats.directors.slice(0, 8).map((d) => ({ label: d.name, value: d.watched, href: `${base}/films?director=${encodeURIComponent(d.name)}` }))
 				: stats.directors
 						.filter((d) => d.avg > 0)
 						.sort((a, b) => b.avg - a.avg)
 						.slice(0, 8)
-						.map((d) => ({ label: d.name, value: d.avg }))
+						.map((d) => ({ label: d.name, value: d.avg, href: `${base}/films?director=${encodeURIComponent(d.name)}` }))
 			: []
 	);
 
 	const genrerows = $derived(
 		stats
 			? genremetric === 'count'
-				? stats.genres.slice(0, 8).map((g) => ({ label: g.name, value: g.count }))
+				? stats.genres.slice(0, 8).map((g) => ({ label: g.name, value: g.count, href: `${base}/films?genre=${encodeURIComponent(g.name)}` }))
 				: stats.genres
 						.filter((g) => g.avg > 0)
 						.sort((a, b) => b.avg - a.avg)
 						.slice(0, 8)
-						.map((g) => ({ label: g.name, value: g.avg }))
+						.map((g) => ({ label: g.name, value: g.avg, href: `${base}/films?genre=${encodeURIComponent(g.name)}` }))
 			: []
 	);
 
 	function ratingval(v: number) {
 		return v.toFixed(1) + ' ★';
 	}
+
+	const ratinghref = (d: { label: string }) => `${base}/films?rating=${d.label}`;
+	const runtimehref = (d: { label: string }) => `${base}/films?runtimebucket=${encodeURIComponent(d.label)}`;
 </script>
 
 {#if !stats}
@@ -179,7 +182,7 @@
 					Runtime preferences
 				</h3>
 				<div class="flex-1 flex flex-col justify-end">
-					<ColumnChart data={stats.runtimebuckets} accent="var(--accent-amber)" height={120} />
+					<ColumnChart data={stats.runtimebuckets} accent="var(--accent-amber)" height={120} gethref={runtimehref} />
 					<div
 						class="flex items-baseline gap-[10px] mt-4 pt-[14px] border-t border-[var(--border)]"
 					>
@@ -262,12 +265,22 @@
 						>
 							{it.k}
 						</div>
-						<div
-							class="font-num font-bold text-[27px] tracking-[-0.02em] mt-[10px] leading-none"
-							style="color: var(--text);"
-						>
-							{it.v}
-						</div>
+						{#if it.href}
+							<a
+								href="{base}{it.href}"
+								class="font-num font-bold text-[27px] tracking-[-0.02em] mt-[10px] leading-none transition-[color] block"
+								style="color: var(--text);"
+								onmouseenter={(e) => ((e.currentTarget as HTMLElement).style.color = 'var(--accent)')}
+								onmouseleave={(e) => ((e.currentTarget as HTMLElement).style.color = 'var(--text)')}
+							>{it.v}</a>
+						{:else}
+							<div
+								class="font-num font-bold text-[27px] tracking-[-0.02em] mt-[10px] leading-none"
+								style="color: var(--text);"
+							>
+								{it.v}
+							</div>
+						{/if}
 						<div class="text-[12px] mt-[7px] leading-[1.35]" style="color: var(--text-muted);">
 							{it.sub}
 						</div>
@@ -318,6 +331,7 @@
 					}))}
 					accent="var(--accent-blue)"
 					height={120}
+					gethref={ratinghref}
 				/>
 				<div class="flex items-baseline gap-[10px] mt-4 pt-[14px] border-t border-[var(--border)]">
 					<span
@@ -342,7 +356,7 @@
 				Runtime preferences
 			</h3>
 			<div class="flex-1 flex flex-col justify-end">
-				<ColumnChart data={stats.runtimebuckets} accent="var(--accent-amber)" height={120} />
+				<ColumnChart data={stats.runtimebuckets} accent="var(--accent-amber)" height={120} gethref={runtimehref} />
 				<div class="flex items-baseline gap-[10px] mt-4 pt-[14px] border-t border-[var(--border)]">
 					<span
 						class="font-num font-bold text-[22px] tracking-[-0.02em]"
@@ -419,12 +433,22 @@
 						>
 							{it.k}
 						</div>
-						<div
-							class="font-num font-bold text-[27px] tracking-[-0.02em] mt-[10px] leading-none"
-							style="color: var(--text);"
-						>
-							{it.v}
-						</div>
+						{#if it.href}
+							<a
+								href="{base}{it.href}"
+								class="font-num font-bold text-[27px] tracking-[-0.02em] mt-[10px] leading-none transition-[color] block"
+								style="color: var(--text);"
+								onmouseenter={(e) => ((e.currentTarget as HTMLElement).style.color = 'var(--accent)')}
+								onmouseleave={(e) => ((e.currentTarget as HTMLElement).style.color = 'var(--text)')}
+							>{it.v}</a>
+						{:else}
+							<div
+								class="font-num font-bold text-[27px] tracking-[-0.02em] mt-[10px] leading-none"
+								style="color: var(--text);"
+							>
+								{it.v}
+							</div>
+						{/if}
 						<div class="text-[12px] mt-[7px] leading-[1.35]" style="color: var(--text-muted);">
 							{it.sub}
 						</div>
@@ -501,6 +525,7 @@
 					}))}
 					accent="var(--accent-blue)"
 					height={150}
+					gethref={ratinghref}
 				/>
 				<div class="flex items-baseline gap-[10px] mt-4 pt-[14px] border-t border-[var(--border)]">
 					<span
@@ -525,7 +550,7 @@
 				Runtime preferences
 			</h3>
 			<div class="flex-1 flex flex-col justify-end">
-				<ColumnChart data={stats.runtimebuckets} accent="var(--accent-amber)" height={150} />
+				<ColumnChart data={stats.runtimebuckets} accent="var(--accent-amber)" height={150} gethref={runtimehref} />
 				<div class="flex items-baseline gap-[10px] mt-4 pt-[14px] border-t border-[var(--border)]">
 					<span
 						class="font-num font-bold text-[22px] tracking-[-0.02em]"

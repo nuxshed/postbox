@@ -2,6 +2,7 @@
 	import { getContext } from 'svelte';
 	import type { dataset } from '$lib/pipeline/types';
 	import { computegenres } from '$lib/stats/genres';
+	import { base } from '$app/paths';
 	import BarList from '$lib/components/barlist.svelte';
 	import Card from '$lib/components/card.svelte';
 	import Infotip from '$lib/components/infotip.svelte';
@@ -10,10 +11,10 @@
 	const stats = $derived(dsctx.data ? computegenres(dsctx.data) : null);
 
 	const watchwedrows = $derived(
-		stats ? stats.topwatched.map((g) => ({ label: g.name, value: g.count })) : []
+		stats ? stats.topwatched.map((g) => ({ label: g.name, value: g.count, href: `${base}/films?genre=${encodeURIComponent(g.name)}` })) : []
 	);
 	const ratedrows = $derived(
-		stats ? stats.toprated.map((g) => ({ label: g.name, value: g.avg })) : []
+		stats ? stats.toprated.map((g) => ({ label: g.name, value: g.avg, href: `${base}/films?genre=${encodeURIComponent(g.name)}` })) : []
 	);
 </script>
 
@@ -53,12 +54,15 @@
 				>
 					Most watched
 				</div>
-				<div
-					class="font-display font-bold text-[34px] leading-[1.05] tracking-[-0.025em] mb-1"
+				<a
+					href="{base}/films?genre={encodeURIComponent(stats.topgenre.name)}"
+					class="font-display font-bold text-[34px] leading-[1.05] tracking-[-0.025em] mb-1 transition-[color] block"
 					style="color: var(--accent-blue);"
+					onmouseenter={(e) => ((e.currentTarget as HTMLElement).style.color = 'var(--accent)')}
+					onmouseleave={(e) => ((e.currentTarget as HTMLElement).style.color = 'var(--accent-blue)')}
 				>
 					{stats.topgenre.name}
-				</div>
+				</a>
 				<div class="text-[12.5px]" style="color: var(--text-muted);">
 					{stats.topgenre.count.toLocaleString('en-US')} logged entries
 				</div>
@@ -73,12 +77,15 @@
 				>
 					Highest rated
 				</div>
-				<div
-					class="font-display font-bold text-[34px] leading-[1.05] tracking-[-0.025em] mb-1"
+				<a
+					href="{base}/films?genre={encodeURIComponent(stats.topratedgenre.name)}"
+					class="font-display font-bold text-[34px] leading-[1.05] tracking-[-0.025em] mb-1 transition-[color] block"
 					style="color: var(--accent-amber);"
+					onmouseenter={(e) => ((e.currentTarget as HTMLElement).style.color = 'var(--accent)')}
+					onmouseleave={(e) => ((e.currentTarget as HTMLElement).style.color = 'var(--accent-amber)')}
 				>
 					{stats.topratedgenre.name}
-				</div>
+				</a>
 				<div class="text-[12.5px]" style="color: var(--text-muted);">
 					{stats.topratedgenre.avg.toFixed(2)} avg rating
 				</div>
@@ -152,7 +159,8 @@
 				<div class="grid grid-cols-2 gap-[6px]">
 					{#each stats.genrecount as g (g.name)}
 						{@const w = Math.max(3, (g.count / (stats.genrecount[0]?.count || 1)) * 100)}
-						<div
+						<a
+							href="{base}/films?genre={encodeURIComponent(g.name)}"
 							class="relative overflow-hidden rounded-[6px] flex items-center justify-between gap-2 px-[10px] py-[8px]"
 							style="background: var(--bg-1);"
 						>
@@ -160,7 +168,11 @@
 								class="absolute inset-0 rounded-[6px]"
 								style="width: {w}%; background: color-mix(in oklab, var(--accent-blue) 12%, transparent);"
 							></div>
-							<span class="relative text-[13px] font-medium truncate" style="color: var(--text);"
+							<span
+								class="relative text-[13px] font-medium truncate transition-[color]"
+								style="color: var(--text);"
+								onmouseenter={(e) => ((e.currentTarget as HTMLElement).style.color = 'var(--accent)')}
+								onmouseleave={(e) => ((e.currentTarget as HTMLElement).style.color = 'var(--text)')}
 								>{g.name}</span
 							>
 							<div class="relative flex items-center gap-[10px] shrink-0">
@@ -171,7 +183,7 @@
 									>{g.avg.toFixed(1)}</span
 								>
 							</div>
-						</div>
+						</a>
 					{/each}
 				</div>
 			</Card>

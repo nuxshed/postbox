@@ -1,7 +1,7 @@
 <script lang="ts">
 	import IconStarFilled from '~icons/tabler/star-filled';
 
-	type Row = { label: string; value: number; sub?: string; unit?: string };
+	type Row = { label: string; value: number; sub?: string; unit?: string; href?: string };
 	type Props = {
 		rows: Row[];
 		accent?: string;
@@ -34,13 +34,26 @@
 				</span>
 			{/if}
 			<div class="flex flex-col min-w-0">
-				<span
-					class="text-[13.5px] font-medium truncate"
-					style="color: var(--text);"
-					title={row.label}
-				>
-					{row.label}
-				</span>
+				{#if row.href}
+					<a
+						href={row.href}
+						class="text-[13.5px] font-medium truncate transition-[color]"
+						style="color: var(--text);"
+						title={row.label}
+						onmouseenter={(e) => ((e.currentTarget as HTMLElement).style.color = 'var(--accent)')}
+						onmouseleave={(e) => ((e.currentTarget as HTMLElement).style.color = 'var(--text)')}
+					>
+						{row.label}
+					</a>
+				{:else}
+					<span
+						class="text-[13.5px] font-medium truncate"
+						style="color: var(--text);"
+						title={row.label}
+					>
+						{row.label}
+					</span>
+				{/if}
 				{#if row.sub}
 					<span class="text-[11px] truncate" style="color: var(--text-dim);">{row.sub}</span>
 				{/if}

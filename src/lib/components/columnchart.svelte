@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { goto } from '$app/navigation';
+
 	type Datapoint = { label: string; title?: string; [key: string]: any };
 	type Props = {
 		data: Datapoint[];
@@ -8,6 +10,7 @@
 		valuekey?: string;
 		showvalues?: boolean;
 		format?: (v: number) => string;
+		gethref?: (d: Datapoint) => string | undefined;
 	};
 	let {
 		data,
@@ -16,7 +19,8 @@
 		gap = 4,
 		valuekey = 'count',
 		showvalues = false,
-		format = (n: number) => n.toLocaleString('en-US')
+		format = (n: number) => n.toLocaleString('en-US'),
+		gethref
 	}: Props = $props();
 
 	const max = $derived(Math.max(...data.map((d) => d[valuekey] ?? 0), 1));
@@ -26,7 +30,12 @@
 	{#each data as d}
 		{@const val = d[valuekey] ?? 0}
 		{@const h = Math.max(2, (val / max) * 100)}
-		<div class="flex-1 flex flex-col items-center min-w-0">
+		{@const href = gethref?.(d)}
+		<div
+			class="flex-1 flex flex-col items-center min-w-0 {href ? 'cursor-pointer' : ''}"
+			onclick={href ? () => goto(href!) : undefined}
+			role={href ? 'button' : undefined}
+		>
 			<div class="flex-1 w-full flex flex-col justify-end items-center">
 				{#if showvalues && val > 0}
 					<div

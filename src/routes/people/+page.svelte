@@ -2,6 +2,7 @@
 	import { getContext } from 'svelte';
 	import type { dataset } from '$lib/pipeline/types';
 	import { computepeople, type personstat } from '$lib/stats/people';
+	import { base } from '$app/paths';
 	import Card from '$lib/components/card.svelte';
 	import Infotip from '$lib/components/infotip.svelte';
 	import IconStarFilled from '~icons/tabler/star-filled';
@@ -57,6 +58,12 @@
 			.join('')
 			.slice(0, 2)
 			.toUpperCase();
+	}
+
+	function personhref(name: string): string {
+		if (tab === 'Directors') return `${base}/films?director=${encodeURIComponent(name)}`;
+		if (tab === 'Actors') return `${base}/films?actor=${encodeURIComponent(name)}`;
+		return '';
 	}
 </script>
 
@@ -128,12 +135,15 @@
 								{initials(heroa.name)}
 							</div>
 						{/if}
-						<div
-							class="font-display font-bold text-[22px] leading-[1.1] tracking-[-0.02em] truncate"
+						<a
+							href={personhref(heroa.name)}
+							class="font-display font-bold text-[22px] leading-[1.1] tracking-[-0.02em] truncate transition-[color]"
 							style="color: var(--text);"
+							onmouseenter={(e) => ((e.currentTarget as HTMLElement).style.color = 'var(--accent)')}
+							onmouseleave={(e) => ((e.currentTarget as HTMLElement).style.color = 'var(--text)')}
 						>
 							{heroa.name}
-						</div>
+						</a>
 					</div>
 					<div class="text-[12.5px]" style="color: var(--text-muted);">
 						{heroa.watched} films logged{heroa.filmcount ? ' · ' + heroa.filmcount + ' titles' : ''}
@@ -167,12 +177,15 @@
 								{initials(herob.name)}
 							</div>
 						{/if}
-						<div
-							class="font-display font-bold text-[22px] leading-[1.1] tracking-[-0.02em] truncate"
+						<a
+							href={personhref(herob.name)}
+							class="font-display font-bold text-[22px] leading-[1.1] tracking-[-0.02em] truncate transition-[color]"
 							style="color: var(--text);"
+							onmouseenter={(e) => ((e.currentTarget as HTMLElement).style.color = 'var(--accent)')}
+							onmouseleave={(e) => ((e.currentTarget as HTMLElement).style.color = 'var(--text)')}
 						>
 							{herob.name}
-						</div>
+						</a>
 					</div>
 					<div class="text-[12.5px]" style="color: var(--text-muted);">
 						{herob.avg.toFixed(2)} avg rating{herob.role ? ' · ' + herob.role : ''}
@@ -210,10 +223,14 @@
 								</div>
 							{/if}
 							<div class="flex flex-col min-w-0">
-								<span
-									class="text-[13.5px] font-medium truncate"
+								<a
+									href={personhref(person.name) || undefined}
+									class="text-[13.5px] font-medium truncate transition-[color]"
 									style="color: var(--text);"
-									title={person.name}>{person.name}</span
+									title={person.name}
+									onmouseenter={personhref(person.name) ? (e) => ((e.currentTarget as HTMLElement).style.color = 'var(--accent)') : undefined}
+									onmouseleave={personhref(person.name) ? (e) => ((e.currentTarget as HTMLElement).style.color = 'var(--text)') : undefined}
+									>{person.name}</a
 								>
 								{#if person.role}
 									<span class="text-[11px]" style="color: var(--text-dim);">{person.role}</span>
@@ -280,10 +297,14 @@
 								</div>
 							{/if}
 							<div class="flex flex-col min-w-0">
-								<span
-									class="text-[13.5px] font-medium truncate"
+								<a
+									href={personhref(person.name) || undefined}
+									class="text-[13.5px] font-medium truncate transition-[color]"
 									style="color: var(--text);"
-									title={person.name}>{person.name}</span
+									title={person.name}
+									onmouseenter={personhref(person.name) ? (e) => ((e.currentTarget as HTMLElement).style.color = 'var(--accent)') : undefined}
+									onmouseleave={personhref(person.name) ? (e) => ((e.currentTarget as HTMLElement).style.color = 'var(--text)') : undefined}
+									>{person.name}</a
 								>
 								{#if person.role}
 									<span class="text-[11px]" style="color: var(--text-dim);">{person.role}</span>

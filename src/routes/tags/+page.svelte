@@ -2,6 +2,7 @@
 	import { getContext } from 'svelte';
 	import type { dataset } from '$lib/pipeline/types';
 	import { computetags } from '$lib/stats/tags';
+	import { base } from '$app/paths';
 	import BarList from '$lib/components/barlist.svelte';
 	import Card from '$lib/components/card.svelte';
 	import IconStarFilled from '~icons/tabler/star-filled';
@@ -15,7 +16,8 @@
 		stats
 			? (expanded ? stats.bycount : stats.bycount.slice(0, 10)).map((t) => ({
 					label: '#' + t.name,
-					value: t.count
+					value: t.count,
+					href: `${base}/films?tag=${encodeURIComponent(t.name)}`
 				}))
 			: []
 	);
@@ -23,7 +25,8 @@
 		stats
 			? (expanded ? stats.byrating : stats.byrating.slice(0, 10)).map((t) => ({
 					label: '#' + t.name,
-					value: t.avg
+					value: t.avg,
+					href: `${base}/films?tag=${encodeURIComponent(t.name)}`
 				}))
 			: []
 	);
@@ -67,12 +70,15 @@
 				>
 					Most used
 				</div>
-				<div
-					class="font-mono font-bold text-[28px] leading-[1.1] tracking-[0.02em] mb-1"
+				<a
+					href="{base}/films?tag={encodeURIComponent(stats.toptag.name)}"
+					class="font-mono font-bold text-[28px] leading-[1.1] tracking-[0.02em] mb-1 transition-[color] block"
 					style="color: var(--accent);"
+					onmouseenter={(e) => ((e.currentTarget as HTMLElement).style.color = 'var(--accent-blue)')}
+					onmouseleave={(e) => ((e.currentTarget as HTMLElement).style.color = 'var(--accent)')}
 				>
 					#{stats.toptag.name}
-				</div>
+				</a>
 				<div class="text-[12.5px]" style="color: var(--text-muted);">
 					{stats.toptag.count.toLocaleString('en-US')} entries
 				</div>
@@ -143,9 +149,12 @@
 			<div class="flex flex-wrap gap-2">
 				{#each stats.bycount as t (t.name)}
 					{@const intensity = Math.round((t.count / (stats.bycount[0]?.count || 1)) * 10)}
-					<div
-						class="flex items-center gap-2 px-[13px] py-[7px] rounded-[8px] border border-[var(--border)]"
+					<a
+						href="{base}/films?tag={encodeURIComponent(t.name)}"
+						class="flex items-center gap-2 px-[13px] py-[7px] rounded-[8px] border border-[var(--border)] transition-[border-color]"
 						style="background: color-mix(in oklab, var(--accent) {intensity}%, transparent);"
+						onmouseenter={(e) => ((e.currentTarget as HTMLElement).style.borderColor = 'var(--accent)')}
+						onmouseleave={(e) => ((e.currentTarget as HTMLElement).style.borderColor = 'var(--border)')}
 					>
 						<span class="font-mono text-[12px]" style="color: var(--text);">#{t.name}</span>
 						<span class="font-mono text-[10.5px]" style="color: var(--text-dim);"
@@ -154,7 +163,7 @@
 						<span class="font-mono text-[10.5px] flex items-center gap-0.5" style="color: var(--text-muted);"
 							>{t.avg.toFixed(1)}<IconStarFilled width="10" height="10" class="text-[var(--accent-amber)] shrink-0" /></span
 						>
-					</div>
+					</a>
 				{/each}
 			</div>
 		</Card>

@@ -2,6 +2,8 @@
 	import { getContext } from 'svelte';
 	import type { dataset } from '$lib/pipeline/types';
 	import { computeactivity, weeksofyear } from '$lib/stats/activity';
+	import { filmslug } from '$lib/utils';
+	import { base } from '$app/paths';
 	import BarList from '$lib/components/barlist.svelte';
 	import ColumnChart from '$lib/components/columnchart.svelte';
 	import Heatmap from '$lib/components/heatmap.svelte';
@@ -9,6 +11,13 @@
 
 	const dsctx = getContext<{ data: dataset | null }>('dataset');
 	const stats = $derived(dsctx.data ? computeactivity(dsctx.data) : null);
+
+	const filmslugmap = $derived.by(() => {
+		const map = new Map<string, string>();
+		if (!dsctx.data) return map;
+		for (const f of dsctx.data.films) map.set(f.name, filmslug(f.uri));
+		return map;
+	});
 
 	let year = $state(0);
 	const curyear = $derived(
@@ -195,7 +204,8 @@
 						rows={stats.mostrewatched.map((r) => ({
 							label: r.name,
 							value: r.times,
-							sub: r.director ?? undefined
+							sub: r.director ?? undefined,
+							href: filmslugmap.get(r.name) ? `${base}/films/${filmslugmap.get(r.name)}` : undefined
 						}))}
 						accent="var(--accent-green)"
 						showrank={true}

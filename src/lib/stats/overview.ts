@@ -14,7 +14,7 @@ export type overstats = {
 	runtimebuckets: { label: string; count: number }[];
 	directors: { name: string; watched: number; avg: number }[];
 	genres: { name: string; count: number; avg: number }[];
-	insights: { k: string; v: string; sub: string }[];
+	insights: { k: string; v: string; sub: string; href?: string }[];
 };
 
 const STARS = [0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5];
@@ -135,10 +135,10 @@ export function computeoverview(data: dataset): overstats {
 
 	const insights: overstats['insights'] = [
 		topdir
-			? { k: 'Most-watched director', v: topdir.name, sub: topdir.watched + ' films logged' }
+			? { k: 'Most-watched director', v: topdir.name, sub: topdir.watched + ' films logged', href: `/films?director=${encodeURIComponent(topdir.name)}` }
 			: { k: 'Most-watched director', v: '—', sub: 'no data yet' },
 		topdecade
-			? { k: 'Signature decade', v: topdecade[0], sub: topdecade[1] + ' films' }
+			? { k: 'Signature decade', v: topdecade[0], sub: topdecade[1] + ' films', href: `/films?decade=${parseInt(topdecade[0])}` }
 			: { k: 'Signature decade', v: '—', sub: 'no data yet' },
 		{ k: 'Avg. runtime', v: avgruntime + ' min', sub: 'across all logged films' },
 		longestfilm?.tmdb?.runtime

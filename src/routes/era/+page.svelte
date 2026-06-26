@@ -2,6 +2,8 @@
 	import { getContext } from 'svelte';
 	import type { dataset } from '$lib/pipeline/types';
 	import { computeera } from '$lib/stats/era';
+	import { filmslug } from '$lib/utils';
+	import { base } from '$app/paths';
 	import MetricToggle from '$lib/components/metrictoggle.svelte';
 	import ColumnChart from '$lib/components/columnchart.svelte';
 	import Card from '$lib/components/card.svelte';
@@ -9,6 +11,13 @@
 
 	const dsctx = getContext<{ data: dataset | null }>('dataset');
 	const stats = $derived(dsctx.data ? computeera(dsctx.data) : null);
+
+	const filmslugmap = $derived.by(() => {
+		const map = new Map<string, string>();
+		if (!dsctx.data) return map;
+		for (const f of dsctx.data.films) map.set(f.name, filmslug(f.uri));
+		return map;
+	});
 
 	let decademetric = $state('count');
 	let seasonmetric = $state('count');
@@ -21,7 +30,8 @@
 					title:
 						d.label +
 						': ' +
-						(decademetric === 'count' ? d.count + ' films' : d.avg.toFixed(2) + '★')
+						(decademetric === 'count' ? d.count + ' films' : d.avg.toFixed(2) + '★'),
+					decade: d.decade
 				}))
 			: []
 	);
@@ -53,6 +63,7 @@
 				valuekey="value"
 				showvalues={true}
 				format={(v) => (decademetric === 'rating' ? v.toFixed(1) : v.toLocaleString('en-US'))}
+				gethref={(d) => d.decade ? `${base}/films?decade=${d.decade}` : undefined}
 			/>
 		</Card>
 
@@ -66,6 +77,7 @@
 						height={160}
 						gap={2}
 						valuekey="count"
+						gethref={(d) => d.year ? `${base}/films?year=${d.year}` : undefined}
 					/>
 				</div>
 			</Card>
@@ -134,21 +146,38 @@
 							</div>
 							<div class="h-px my-[10px]" style="background: var(--border);"></div>
 							{#if era.top}
-								<div
-									class="text-[12.5px] font-medium leading-[1.3] truncate"
-									style="color: var(--text);"
-									title={era.top.name}
-								>
-									{era.top.name}
-								</div>
-								{#if era.top.director}
+								{@const fs = filmslugmap.get(era.top.name)}
+								{#if fs}
+									<a
+										href="{base}/films/{fs}"
+										class="text-[12.5px] font-medium leading-[1.3] truncate transition-[color]"
+								onmouseenter={(e) => ((e.currentTarget as HTMLElement).style.color = 'var(--accent)')}
+								onmouseleave={(e) => ((e.currentTarget as HTMLElement).style.color = 'var(--text)')}
+										style="color: var(--text);"
+										title={era.top.name}
+									>
+										{era.top.name}
+									</a>
+								{:else}
 									<div
-										class="text-[11px] mt-[3px] truncate"
+										class="text-[12.5px] font-medium leading-[1.3] truncate"
+										style="color: var(--text);"
+										title={era.top.name}
+									>
+										{era.top.name}
+									</div>
+								{/if}
+								{#if era.top.director}
+									<a
+										href="{base}/films?director={encodeURIComponent(era.top.director)}"
+										class="text-[11px] mt-[3px] truncate transition-[color] block"
 										style="color: var(--text-dim);"
 										title={era.top.director}
+										onmouseenter={(e) => ((e.currentTarget as HTMLElement).style.color = 'var(--accent)')}
+										onmouseleave={(e) => ((e.currentTarget as HTMLElement).style.color = 'var(--text-dim)')}
 									>
 										{era.top.director}
-									</div>
+									</a>
 								{/if}
 								<div
 									class="font-mono text-[11px] mt-[6px] font-bold flex items-center gap-0.5"

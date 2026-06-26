@@ -2,6 +2,8 @@
 	import { getContext } from 'svelte';
 	import type { dataset } from '$lib/pipeline/types';
 	import { computeworld } from '$lib/stats/world';
+	import { base } from '$app/paths';
+	import { goto } from '$app/navigation';
 	import MetricToggle from '$lib/components/metrictoggle.svelte';
 	import BarList from '$lib/components/barlist.svelte';
 	import WorldMap from '$lib/components/worldmap.svelte';
@@ -28,7 +30,7 @@
 
 	const countryrows = $derived(
 		(showAllCountries ? sortedCountries : sortedCountries.slice(0, 10))
-			.map((d) => ({ label: d.name, value: countryMetric === 'count' ? d.count : d.avg }))
+			.map((d) => ({ label: d.name, value: countryMetric === 'count' ? d.count : d.avg, href: `${base}/films?country=${encodeURIComponent(d.name)}` }))
 	);
 
 	const sortedLangs = $derived(
@@ -42,7 +44,7 @@
 
 	const langrows = $derived(
 		(showAllLanguages ? sortedLangs : sortedLangs.slice(0, 10))
-			.map((d) => ({ label: d.name, value: langMetric === 'count' ? d.count : d.avg }))
+			.map((d) => ({ label: d.name, value: langMetric === 'count' ? d.count : d.avg, href: `${base}/films?language=${encodeURIComponent(d.name)}` }))
 	);
 
 	function fmtrating(v: number) {
@@ -64,7 +66,11 @@
 			{#snippet actions()}
 				<MetricToggle value={mapMetric} onchange={(v) => (mapMetric = v)} />
 			{/snippet}
-			<WorldMap data={stats.countrydist} metric={mapMetric} />
+			<WorldMap
+				data={stats.countrydist}
+				metric={mapMetric}
+				oncountryclick={(name) => goto(`${base}/films?country=${encodeURIComponent(name)}`)}
+			/>
 		</Card>
 
 		<!-- country + language breakdown -->

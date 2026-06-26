@@ -1,30 +1,10 @@
 import type { dataset } from '$lib/pipeline/types';
+import { displaycountry } from '$lib/utils';
 
 export type worldstats = {
 	countrydist: { name: string; count: number; avg: number }[];
 	langdist: { name: string; count: number; avg: number }[];
 };
-
-// TMDB production_countries[].name → short display name
-const COUNTRY_DISPLAY: Record<string, string> = {
-	'United States of America': 'USA',
-	'United Kingdom': 'UK',
-	'Russian Federation': 'Russia',
-	'Taiwan, Province of China': 'Taiwan',
-	'Iran, Islamic Republic of': 'Iran',
-	"Korea, Democratic People's Republic of": 'North Korea',
-	'Korea, Republic of': 'South Korea',
-	'Hong Kong': 'Hong Kong',
-	'Viet Nam': 'Vietnam',
-	'Syrian Arab Republic': 'Syria',
-	'Bolivia, Plurinational State of': 'Bolivia',
-	'Venezuela, Bolivarian Republic of': 'Venezuela',
-	'Palestinian Territory': 'Palestine'
-};
-
-function countryname(tmdbname: string): string {
-	return COUNTRY_DISPLAY[tmdbname] ?? tmdbname;
-}
 
 // TMDB original_language code → display name
 // cn is TMDB's non-standard code for Cantonese (used for HK films)
@@ -98,10 +78,10 @@ export function computeworld(data: dataset): worldstats {
 
 		for (const c of f.tmdb.countries) {
 			if (!c) continue;
-			const name = countryname(c);
+			const name = displaycountry(c);
 			if (!countrymap.has(name)) countrymap.set(name, { count: 0, ratings: [] });
 			const e = countrymap.get(name)!;
-			e.count += f.watchcount;
+			e.count += 1;
 			if (f.rating !== null) e.ratings.push(f.rating);
 		}
 
@@ -109,7 +89,7 @@ export function computeworld(data: dataset): worldstats {
 		if (lang) {
 			if (!langmap.has(lang)) langmap.set(lang, { count: 0, ratings: [] });
 			const e = langmap.get(lang)!;
-			e.count += f.watchcount;
+			e.count += 1;
 			if (f.rating !== null) e.ratings.push(f.rating);
 		}
 	}
