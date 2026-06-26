@@ -2,12 +2,14 @@
 	import './layout.css';
 	import favicon from '$lib/assets/favicon.svg';
 	import Upload from '$lib/components/upload.svelte';
+	import RangeSelector from '$lib/components/rangeselector.svelte';
 	import { setContext } from 'svelte';
 	import { page } from '$app/stores';
 	import { base } from '$app/paths';
 	import { onMount } from 'svelte';
 	import { loadstored, clearstored } from '$lib/pipeline/store';
 	import type { dataset } from '$lib/pipeline/types';
+	import { filterbyrange, type rangesel } from '$lib/stats/range';
 
 	let { children } = $props();
 
@@ -15,6 +17,9 @@
 	let ready = $state(false);
 	let dir = $state('ledger');
 	let dropdownopen = $state(false);
+	let range = $state<rangesel>({ kind: 'all' });
+
+	const filtereddata = $derived(data ? filterbyrange(data, range) : null);
 
 	onMount(() => {
 		data = loadstored();
@@ -33,7 +38,7 @@
 
 	setContext('dataset', {
 		get data() {
-			return data;
+			return filtereddata;
 		}
 	});
 	setContext('ovdir', {
@@ -201,93 +206,97 @@
 					{pagetitle}
 				</h1>
 
-				{#if isoverview}
-					<div
-						class="flex items-center gap-0.5 p-[3px] rounded-[8px] border border-[var(--border)]"
-						style="background: var(--bar-track);"
-					>
-						{#each DIRS as d (d.id)}
-							{@const active = dir === d.id}
-							<button
-								class="flex items-center justify-center w-[30px] h-[28px] rounded-[6px] transition-all"
-								style={active
-									? 'color: var(--accent); background: color-mix(in oklab, var(--accent) 14%, transparent); box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--accent) 30%, transparent);'
-									: 'color: var(--text-dim);'}
-								onmouseenter={(e) => {
-									if (!active) (e.currentTarget as HTMLElement).style.color = 'var(--text-muted)';
-								}}
-								onmouseleave={(e) => {
-									if (!active) (e.currentTarget as HTMLElement).style.color = 'var(--text-dim)';
-								}}
-								title={d.title}
-								onclick={() => (dir = d.id)}
-							>
-								{#if d.id === 'ledger'}
-									<svg
-										width="14"
-										height="14"
-										viewBox="0 0 24 24"
-										fill="none"
-										stroke="currentColor"
-										stroke-width="2"
-										stroke-linecap="round"
-									>
-										<line x1="3" y1="6" x2="21" y2="6" /><line
-											x1="3"
-											y1="12"
-											x2="21"
-											y2="12"
-										/><line x1="3" y1="18" x2="21" y2="18" />
-									</svg>
-								{:else if d.id === 'marquee'}
-									<svg
-										width="14"
-										height="14"
-										viewBox="0 0 24 24"
-										fill="none"
-										stroke="currentColor"
-										stroke-width="2"
-										stroke-linecap="round"
-										stroke-linejoin="round"
-									>
-										<rect x="3" y="3" width="18" height="7" rx="1" /><rect
-											x="3"
-											y="13"
-											width="8"
-											height="8"
-											rx="1"
-										/><rect x="14" y="13" width="7" height="8" rx="1" />
-									</svg>
-								{:else}
-									<svg
-										width="14"
-										height="14"
-										viewBox="0 0 24 24"
-										fill="none"
-										stroke="currentColor"
-										stroke-width="2"
-										stroke-linecap="round"
-										stroke-linejoin="round"
-									>
-										<rect x="3" y="3" width="7" height="7" rx="1" /><rect
-											x="14"
-											y="3"
-											width="7"
-											height="7"
-											rx="1"
-										/><rect x="3" y="14" width="7" height="7" rx="1" /><rect
-											x="14"
-											y="14"
-											width="7"
-											height="7"
-											rx="1"
-										/>
-									</svg>
-								{/if}
-							</button>
-						{/each}
-					</div>
-				{/if}
+				<div class="flex items-center gap-3">
+					<RangeSelector value={range} onchange={(v) => (range = v)} />
+
+					{#if isoverview}
+						<div
+							class="flex items-center gap-0.5 p-[3px] rounded-[8px] border border-[var(--border)]"
+							style="background: var(--bar-track);"
+						>
+							{#each DIRS as d (d.id)}
+								{@const active = dir === d.id}
+								<button
+									class="flex items-center justify-center w-[30px] h-[28px] rounded-[6px] transition-all"
+									style={active
+										? 'color: var(--accent); background: color-mix(in oklab, var(--accent) 14%, transparent); box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--accent) 30%, transparent);'
+										: 'color: var(--text-dim);'}
+									onmouseenter={(e) => {
+										if (!active) (e.currentTarget as HTMLElement).style.color = 'var(--text-muted)';
+									}}
+									onmouseleave={(e) => {
+										if (!active) (e.currentTarget as HTMLElement).style.color = 'var(--text-dim)';
+									}}
+									title={d.title}
+									onclick={() => (dir = d.id)}
+								>
+									{#if d.id === 'ledger'}
+										<svg
+											width="14"
+											height="14"
+											viewBox="0 0 24 24"
+											fill="none"
+											stroke="currentColor"
+											stroke-width="2"
+											stroke-linecap="round"
+										>
+											<line x1="3" y1="6" x2="21" y2="6" /><line
+												x1="3"
+												y1="12"
+												x2="21"
+												y2="12"
+											/><line x1="3" y1="18" x2="21" y2="18" />
+										</svg>
+									{:else if d.id === 'marquee'}
+										<svg
+											width="14"
+											height="14"
+											viewBox="0 0 24 24"
+											fill="none"
+											stroke="currentColor"
+											stroke-width="2"
+											stroke-linecap="round"
+											stroke-linejoin="round"
+										>
+											<rect x="3" y="3" width="18" height="7" rx="1" /><rect
+												x="3"
+												y="13"
+												width="8"
+												height="8"
+												rx="1"
+											/><rect x="14" y="13" width="7" height="8" rx="1" />
+										</svg>
+									{:else}
+										<svg
+											width="14"
+											height="14"
+											viewBox="0 0 24 24"
+											fill="none"
+											stroke="currentColor"
+											stroke-width="2"
+											stroke-linecap="round"
+											stroke-linejoin="round"
+										>
+											<rect x="3" y="3" width="7" height="7" rx="1" /><rect
+												x="14"
+												y="3"
+												width="7"
+												height="7"
+												rx="1"
+											/><rect x="3" y="14" width="7" height="7" rx="1" /><rect
+												x="14"
+												y="14"
+												width="7"
+												height="7"
+												rx="1"
+											/>
+										</svg>
+									{/if}
+								</button>
+							{/each}
+						</div>
+					{/if}
+				</div>
 			</div>
 		</div>
 
