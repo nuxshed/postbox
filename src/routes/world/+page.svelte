@@ -44,7 +44,7 @@
 
 	const langrows = $derived(
 		(showAllLanguages ? sortedLangs : sortedLangs.slice(0, 10))
-			.map((d) => ({ label: d.name, value: langMetric === 'count' ? d.count : d.avg, href: `${base}/films?language=${encodeURIComponent(d.name)}` }))
+			.map((d) => ({ label: d.name, value: langMetric === 'count' ? d.count : d.avg, href: `${base}/films?language=${encodeURIComponent(d.code)}` }))
 	);
 
 	function fmtrating(v: number) {

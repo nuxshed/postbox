@@ -146,7 +146,7 @@
 						</a>
 					</div>
 					<div class="text-[12.5px]" style="color: var(--text-muted);">
-						{heroa.watched} films logged{heroa.filmcount ? ' · ' + heroa.filmcount + ' titles' : ''}
+						{heroa.watched} film{heroa.watched === 1 ? '' : 's'} logged
 					</div>
 				{/if}
 			</section>

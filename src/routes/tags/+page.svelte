@@ -57,7 +57,7 @@
 					{stats.tags.length}
 				</div>
 				<div class="text-[12.5px] mt-1" style="color: var(--text-muted);">
-					{stats.totallogs.toLocaleString('en-US')} total tagged entries
+					{stats.totallogs.toLocaleString('en-US')} tag applications
 				</div>
 			</section>
 			<section
@@ -80,7 +80,7 @@
 					#{stats.toptag.name}
 				</a>
 				<div class="text-[12.5px]" style="color: var(--text-muted);">
-					{stats.toptag.count.toLocaleString('en-US')} entries
+					{stats.toptag.count.toLocaleString('en-US')} film{stats.toptag.count === 1 ? '' : 's'}
 				</div>
 			</section>
 			<section
@@ -105,7 +105,7 @@
 
 		<!-- two lists -->
 		<div class="grid grid-cols-2 gap-[18px]">
-			<Card title="By watch count">
+			<Card title="By film count">
 				<BarList rows={countrows} accent="var(--accent)" showrank={true} />
 				{#if stats && stats.bycount.length > 10}
 					<div class="mt-3 pt-3 flex justify-center">

@@ -4,7 +4,7 @@
 	import { goto } from '$app/navigation';
 	import { base } from '$app/paths';
 	import type { dataset } from '$lib/pipeline/types';
-	import { filmslug, tmdbposter, displaycountry } from '$lib/utils';
+	import { filmslug, tmdbposter, displaycountry, displaylanguage } from '$lib/utils';
 	import IconStarFilled from '~icons/tabler/star-filled';
 	import IconSearch from '~icons/tabler/search';
 	import IconX from '~icons/tabler/x';
@@ -49,9 +49,12 @@
 	const countries = $derived(
 		[...new Set(allfilms.flatMap((f) => (f.tmdb?.countries ?? []).map(displaycountry)))].sort()
 	);
-	const languages = $derived(
-		[...new Set(allfilms.map((f) => f.tmdb?.language).filter((l): l is string => !!l))].sort()
-	);
+	const languages = $derived.by(() => {
+		const codes = [...new Set(allfilms.map((f) => f.tmdb?.language).filter((l): l is string => !!l))];
+		return codes
+			.map((code) => ({ code, name: displaylanguage(code) }))
+			.sort((a, b) => a.name.localeCompare(b.name));
+	});
 	const tags = $derived.by(() => {
 		if (!dsctx.data) return [];
 		const tagset = new Set<string>();
@@ -128,7 +131,7 @@
 			decade ? { key: 'decade', label: decade + 's' } : null,
 			actor ? { key: 'actor', label: actor } : null,
 			country ? { key: 'country', label: country } : null,
-			language ? { key: 'language', label: language } : null,
+			language ? { key: 'language', label: displaylanguage(language) } : null,
 			tag ? { key: 'tag', label: '#' + tag } : null,
 			rating ? { key: 'rating', label: '★ ' + rating } : null,
 			runtimebucket ? { key: 'runtimebucket', label: runtimebucket } : null,
@@ -291,8 +294,8 @@
 					style="background: {language ? 'color-mix(in oklab, var(--accent) 12%, var(--bg))' : 'var(--bg)'}; color: {language ? 'var(--text)' : 'var(--text-muted)'};"
 				>
 					<option value="">Language</option>
-					{#each languages as l (l)}
-						<option value={l}>{l}</option>
+					{#each languages as l (l.code)}
+						<option value={l.code}>{l.name}</option>
 					{/each}
 				</select>
 

@@ -36,7 +36,7 @@ export function computepeople(data: dataset): peoplestats {
 		if (!dirmap.has(name))
 			dirmap.set(name, { watched: 0, ratings: [], filmcount: 0, ratedfilms: 0, photo: null });
 		const e = dirmap.get(name)!;
-		e.watched += f.watchcount;
+		e.watched += 1;
 		e.filmcount++;
 		if (f.rating !== null && f.rating > 0) {
 			e.ratings.push(f.rating);
@@ -70,7 +70,7 @@ export function computepeople(data: dataset): peoplestats {
 			if (!actormap.has(name))
 				actormap.set(name, { watched: 0, ratings: [], ratedfilms: 0, photo: null });
 			const e = actormap.get(name)!;
-			e.watched += f.watchcount;
+			e.watched += 1;
 			if (f.rating !== null && f.rating > 0) {
 				e.ratings.push(f.rating);
 				e.ratedfilms++;
@@ -103,7 +103,7 @@ export function computepeople(data: dataset): peoplestats {
 			if (!crewmap.has(key))
 				crewmap.set(key, { watched: 0, ratings: [], ratedfilms: 0, role: c.job, photo: null });
 			const e = crewmap.get(key)!;
-			e.watched += f.watchcount;
+			e.watched += 1;
 			if (f.rating !== null && f.rating > 0) {
 				e.ratings.push(f.rating);
 				e.ratedfilms++;

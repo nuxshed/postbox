@@ -23,7 +23,7 @@ export function computegenres(data: dataset): genrestats {
 		for (const g of f.tmdb.genres) {
 			if (!genremap.has(g)) genremap.set(g, { count: 0, ratings: [] });
 			const e = genremap.get(g)!;
-			e.count += f.watchcount;
+			e.count += 1;
 			if (f.rating !== null && f.rating > 0) e.ratings.push(f.rating);
 		}
 	}

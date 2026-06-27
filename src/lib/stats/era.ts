@@ -24,7 +24,7 @@ export function computeera(data: dataset): erastats {
 		const decade = Math.floor(f.year / 10) * 10;
 		if (!decademap.has(decade)) decademap.set(decade, { count: 0, ratings: [] });
 		const e = decademap.get(decade)!;
-		e.count += f.watchcount;
+		e.count += 1;
 		if (f.rating !== null) e.ratings.push(f.rating);
 	}
 	const decadedist = [...decademap.entries()]
@@ -43,7 +43,7 @@ export function computeera(data: dataset): erastats {
 	// release year distribution
 	const yearmap = new Map<number, number>();
 	for (const f of films) {
-		yearmap.set(f.year, (yearmap.get(f.year) ?? 0) + f.watchcount);
+		yearmap.set(f.year, (yearmap.get(f.year) ?? 0) + 1);
 	}
 	const releaseyears = [...yearmap.entries()]
 		.sort((a, b) => a[0] - b[0])

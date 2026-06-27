@@ -20,27 +20,33 @@ export function computetags(data: dataset): tagstats {
 		filmrating.set(`${f.name}|${f.year}`, f.rating);
 	}
 
-	const tagmap = new Map<string, { count: number; ratings: number[] }>();
+	const tagmap = new Map<string, { films: Set<string>; ratings: number[] }>();
 	for (const entry of diary) {
 		if (!entry.tags) continue;
 		const tags = entry.tags
 			.split(',')
 			.map((t) => t.trim())
 			.filter(Boolean);
-		// prefer film rating from ratings.csv, fall back to diary entry rating
-		const rating = filmrating.get(`${entry.name}|${entry.year}`) ?? entry.rating;
+		const filmKey = `${entry.name}|${entry.year}`;
+		const rating = filmrating.get(filmKey) ?? entry.rating;
 		for (const tag of tags) {
-			if (!tagmap.has(tag)) tagmap.set(tag, { count: 0, ratings: [] });
+			if (!tagmap.has(tag)) {
+				tagmap.set(tag, { films: new Set(), ratings: [] });
+			}
 			const e = tagmap.get(tag)!;
-			e.count++;
-			if (rating !== null && rating !== undefined && rating > 0) e.ratings.push(rating);
+			if (!e.films.has(filmKey)) {
+				e.films.add(filmKey);
+				if (rating !== null && rating !== undefined && rating > 0) {
+					e.ratings.push(rating);
+				}
+			}
 		}
 	}
 
 	const tags = [...tagmap.entries()]
-		.map(([name, { count, ratings }]) => ({
+		.map(([name, { films: taggedFilms, ratings }]) => ({
 			name,
-			count,
+			count: taggedFilms.size,
 			avg:
 				ratings.length > 0
 					? Math.round((ratings.reduce((a, b) => a + b, 0) / ratings.length) * 100) / 100

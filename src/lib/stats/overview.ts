@@ -76,7 +76,7 @@ export function computeoverview(data: dataset): overstats {
 		if (!dir) continue;
 		if (!dirmap.has(dir)) dirmap.set(dir, { watched: 0, ratings: [] });
 		const e = dirmap.get(dir)!;
-		e.watched += f.watchcount;
+		e.watched += 1;
 		if (f.rating !== null) e.ratings.push(f.rating);
 	}
 	const directors = [...dirmap.entries()]
@@ -95,7 +95,7 @@ export function computeoverview(data: dataset): overstats {
 		for (const g of f.tmdb?.genres ?? []) {
 			if (!genremap.has(g)) genremap.set(g, { count: 0, ratings: [] });
 			const e = genremap.get(g)!;
-			e.count += f.watchcount;
+			e.count += 1;
 			if (f.rating !== null) e.ratings.push(f.rating);
 		}
 	}
@@ -135,7 +135,7 @@ export function computeoverview(data: dataset): overstats {
 
 	const insights: overstats['insights'] = [
 		topdir
-			? { k: 'Most-watched director', v: topdir.name, sub: topdir.watched + ' films logged', href: `/films?director=${encodeURIComponent(topdir.name)}` }
+			? { k: 'Most-watched director', v: topdir.name, sub: topdir.watched + ' film' + (topdir.watched === 1 ? '' : 's'), href: `/films?director=${encodeURIComponent(topdir.name)}` }
 			: { k: 'Most-watched director', v: '—', sub: 'no data yet' },
 		topdecade
 			? { k: 'Signature decade', v: topdecade[0], sub: topdecade[1] + ' films', href: `/films?decade=${parseInt(topdecade[0])}` }
