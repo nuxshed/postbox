@@ -10,6 +10,7 @@
 	import IconArrowLeft from '~icons/tabler/arrow-left';
 	import IconClock from '~icons/tabler/clock';
 	import IconRefresh from '~icons/tabler/refresh';
+	import IconHeartFilled from '~icons/tabler/heart-filled';
 
 	const slug = $derived($page.params.slug);
 
@@ -91,12 +92,23 @@
 			<div class="flex flex-col gap-5 min-w-0 flex-1 py-1">
 				<!-- title + year -->
 				<div>
-					<h2
-						class="font-display font-bold text-[36px] leading-[0.95] tracking-[-0.03em]"
-						style="color: var(--text);"
-					>
-						{film.name}
-					</h2>
+					<div class="flex items-start gap-3">
+						<h2
+							class="font-display font-bold text-[36px] leading-[0.95] tracking-[-0.03em]"
+							style="color: var(--text);"
+						>
+							{film.name}
+						</h2>
+						{#if film.liked}
+							<div
+								class="flex items-center gap-1 mt-1 px-[9px] py-[5px] rounded-[6px] border border-[#e05c72]/30 shrink-0"
+								style="background: color-mix(in oklab, #e05c72 10%, transparent);"
+							>
+								<IconHeartFilled width="11" height="11" style="color: #e05c72;" />
+								<span class="font-mono text-[10.5px] font-medium" style="color: #e05c72;">liked</span>
+							</div>
+						{/if}
+					</div>
 					<div class="flex items-center gap-3 mt-2 flex-wrap">
 						<span class="font-mono text-[12px]" style="color: var(--text-muted);">{film.year}</span>
 						{#if film.tmdb?.runtime}

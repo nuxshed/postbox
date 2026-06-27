@@ -13,8 +13,10 @@ export type overstats = {
 	thisyear: number;
 	ratingdist: { star: number; count: number }[];
 	runtimebuckets: { label: string; count: number }[];
-	directors: { name: string; watched: number; avg: number }[];
-	genres: { name: string; count: number; avg: number }[];
+	directors: { name: string; watched: number; avg: number; liked: number }[];
+	genres: { name: string; count: number; avg: number; liked: number }[];
+	hasratings: boolean;
+	haslikes: boolean;
 	insights: { k: string; v: string; sub: string; href?: string; subhref?: string }[];
 };
 
@@ -71,19 +73,21 @@ export function computeoverview(data: dataset): overstats {
 	}).length;
 
 	// directors
-	const dirmap = new Map<string, { watched: number; ratings: number[] }>();
+	const dirmap = new Map<string, { watched: number; ratings: number[]; liked: number }>();
 	for (const f of films) {
 		const dir = f.tmdb?.director;
 		if (!dir) continue;
-		if (!dirmap.has(dir)) dirmap.set(dir, { watched: 0, ratings: [] });
+		if (!dirmap.has(dir)) dirmap.set(dir, { watched: 0, ratings: [], liked: 0 });
 		const e = dirmap.get(dir)!;
 		e.watched += 1;
 		if (f.rating !== null) e.ratings.push(f.rating);
+		if (f.liked) e.liked += 1;
 	}
 	const directors = [...dirmap.entries()]
-		.map(([name, { watched, ratings }]) => ({
+		.map(([name, { watched, ratings, liked }]) => ({
 			name,
 			watched,
+			liked,
 			avg: ratings.length
 				? Math.round((ratings.reduce((a, b) => a + b, 0) / ratings.length) * 10) / 10
 				: 0
@@ -91,19 +95,21 @@ export function computeoverview(data: dataset): overstats {
 		.sort((a, b) => b.watched - a.watched);
 
 	// genres
-	const genremap = new Map<string, { count: number; ratings: number[] }>();
+	const genremap = new Map<string, { count: number; ratings: number[]; liked: number }>();
 	for (const f of films) {
 		for (const g of f.tmdb?.genres ?? []) {
-			if (!genremap.has(g)) genremap.set(g, { count: 0, ratings: [] });
+			if (!genremap.has(g)) genremap.set(g, { count: 0, ratings: [], liked: 0 });
 			const e = genremap.get(g)!;
 			e.count += 1;
 			if (f.rating !== null) e.ratings.push(f.rating);
+			if (f.liked) e.liked += 1;
 		}
 	}
 	const genres = [...genremap.entries()]
-		.map(([name, { count, ratings }]) => ({
+		.map(([name, { count, ratings, liked }]) => ({
 			name,
 			count,
+			liked,
 			avg: ratings.length
 				? Math.round((ratings.reduce((a, b) => a + b, 0) / ratings.length) * 10) / 10
 				: 0
@@ -160,6 +166,9 @@ export function computeoverview(data: dataset): overstats {
 		{ k: 'Rewatch rate', v: rewatchpct + '%', sub: 'you return to your favorites' }
 	];
 
+	const hasratings = films.some((f) => f.rating !== null);
+	const haslikes = films.some((f) => f.liked);
+
 	return {
 		totalfilms: films.length,
 		totalentries,
@@ -174,6 +183,8 @@ export function computeoverview(data: dataset): overstats {
 		runtimebuckets,
 		directors,
 		genres,
+		hasratings,
+		haslikes,
 		insights
 	};
 }

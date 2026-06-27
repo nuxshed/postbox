@@ -62,11 +62,22 @@ export function parseprofile(csv: string): profile | null {
 export function parseall(
 	watchedcsv: string,
 	ratingscsv: string,
-	diarycsv: string
+	diarycsv: string,
+	likescsv: string = ''
 ): { films: film[]; diary: diaryentry[] } {
 	const watched = validate(watchedschema, parsecsv(watchedcsv), 'watched');
 	const ratings = validate(ratingschema, parsecsv(ratingscsv), 'ratings');
 	const diary = validate(diaryschema, parsecsv(diarycsv), 'diary');
+
+	const likedset = new Set<string>();
+	if (likescsv) {
+		const likesrows = parsecsv(likescsv);
+		for (const row of likesrows) {
+			const name = row['Name'];
+			const year = row['Year'];
+			if (name && year) likedset.add(`${name}|${year}`);
+		}
+	}
 
 	// build rating lookup: name+year → rating
 	const ratingmap = new Map<string, number>();
@@ -109,6 +120,7 @@ export function parseall(
 			year: w.Year,
 			uri: w['Letterboxd URI'],
 			rating: ratingmap.get(k) ?? diaryratingmap.get(k) ?? null,
+			liked: likedset.has(k),
 			firstwatched: sorted[0],
 			lastwatched: sorted[sorted.length - 1],
 			watchcount: sorted.length
@@ -126,6 +138,7 @@ export function parseall(
 			year: d.Year,
 			uri: d['Letterboxd URI'],
 			rating: ratingmap.get(k) ?? diaryratingmap.get(k) ?? null,
+			liked: likedset.has(k),
 			firstwatched: sorted[0],
 			lastwatched: sorted[sorted.length - 1],
 			watchcount: sorted.length

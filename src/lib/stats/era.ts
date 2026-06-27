@@ -1,9 +1,9 @@
 import type { dataset, enrichedfilm } from '$lib/pipeline/types';
 
 export type erastats = {
-	decadedist: { decade: number; label: string; count: number; avg: number }[];
+	decadedist: { decade: number; label: string; count: number; avg: number; liked: number }[];
 	releaseyears: { year: number; count: number; label: string; title: string }[];
-	seasonal: { month: string; count: number; avg: number }[];
+	seasonal: { month: string; count: number; avg: number; liked: number }[];
 	erahighlights: {
 		label: string;
 		count: number;
@@ -19,20 +19,22 @@ export function computeera(data: dataset): erastats {
 	const { films, diary } = data;
 
 	// decade distribution
-	const decademap = new Map<number, { count: number; ratings: number[] }>();
+	const decademap = new Map<number, { count: number; ratings: number[]; liked: number }>();
 	for (const f of films) {
 		const decade = Math.floor(f.year / 10) * 10;
-		if (!decademap.has(decade)) decademap.set(decade, { count: 0, ratings: [] });
+		if (!decademap.has(decade)) decademap.set(decade, { count: 0, ratings: [], liked: 0 });
 		const e = decademap.get(decade)!;
 		e.count += 1;
 		if (f.rating !== null) e.ratings.push(f.rating);
+		if (f.liked) e.liked += 1;
 	}
 	const decadedist = [...decademap.entries()]
 		.sort((a, b) => a[0] - b[0])
-		.map(([decade, { count, ratings }]) => ({
+		.map(([decade, { count, ratings, liked }]) => ({
 			decade,
 			label: "'" + String(decade).slice(2) + 's',
 			count,
+			liked,
 			avg:
 				ratings.length > 0
 					? Math.round((ratings.reduce((a, b) => a + b, 0) / ratings.length) * 100) / 100
@@ -55,6 +57,7 @@ export function computeera(data: dataset): erastats {
 		}));
 
 	// seasonal patterns (by diary watch month)
+	const likedset = new Set(films.filter((f) => f.liked).map((f) => `${f.name}|${f.year}`));
 	const seasonal = MONTHS.map((month, i) => {
 		const entries = diary.filter((e) => {
 			const d = new Date((e.watcheddate || e.date) + 'T00:00:00');
@@ -62,7 +65,8 @@ export function computeera(data: dataset): erastats {
 		});
 		const ratings = entries.filter((e) => e.rating !== null).map((e) => e.rating!);
 		const avg = ratings.length > 0 ? ratings.reduce((a, b) => a + b, 0) / ratings.length : 0;
-		return { month, count: entries.length, avg: Math.round(avg * 100) / 100 };
+		const liked = [...new Set(entries.map((e) => `${e.name}|${e.year}`))].filter((k) => likedset.has(k)).length;
+		return { month, count: entries.length, avg: Math.round(avg * 100) / 100, liked };
 	});
 
 	// era highlights: top-rated film per key decade

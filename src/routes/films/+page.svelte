@@ -6,6 +6,7 @@
 	import type { dataset } from '$lib/pipeline/types';
 	import { filmslug, tmdbposter, displaycountry, displaylanguage } from '$lib/utils';
 	import IconStarFilled from '~icons/tabler/star-filled';
+	import IconHeartFilled from '~icons/tabler/heart-filled';
 	import IconSearch from '~icons/tabler/search';
 	import IconX from '~icons/tabler/x';
 	import IconChevronDown from '~icons/tabler/chevron-down';
@@ -386,6 +387,14 @@
 									>
 										{film.name}
 									</span>
+								</div>
+							{/if}
+							{#if film.liked}
+								<div
+									class="absolute bottom-[6px] left-[6px] flex items-center justify-center w-[22px] h-[22px] rounded-[4px]"
+									style="background: rgba(0,0,0,0.72); backdrop-filter: blur(4px);"
+								>
+									<IconHeartFilled width="10" height="10" style="color: #e05c72;" />
 								</div>
 							{/if}
 							{#if film.rating !== null}

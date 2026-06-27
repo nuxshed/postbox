@@ -5,12 +5,36 @@
 	import { base } from '$app/paths';
 	import BarList from '$lib/components/barlist.svelte';
 	import Card from '$lib/components/card.svelte';
+	import MetricToggle from '$lib/components/metrictoggle.svelte';
 	import IconStarFilled from '~icons/tabler/star-filled';
 
 	const dsctx = getContext<{ data: dataset | null }>('dataset');
 	const stats = $derived(dsctx.data ? computetags(dsctx.data) : null);
 
+	const hasratings = $derived(dsctx.data?.films.some((f) => f.rating !== null) ?? false);
+	const haslikes = $derived(dsctx.data?.films.some((f) => f.liked) ?? false);
+
 	let expanded = $state(false);
+	let ratedmetric = $state('rating');
+	$effect(() => {
+		if (dsctx.data && ratedopts.length > 0) {
+			const hasCurrent = ratedopts.some((o) => o.id === ratedmetric);
+			if (!hasCurrent) {
+				ratedmetric = ratedopts[0].id;
+			}
+		}
+	});
+
+	const ratedopts = $derived.by(() => {
+		const opts = [];
+		if (hasratings && stats && stats.byrating.some((t) => t.avg > 0)) {
+			opts.push({ id: 'rating', label: 'By avg rating' });
+		}
+		if (haslikes || (!haslikes && !hasratings)) {
+			opts.push({ id: 'liked', label: 'Most liked' });
+		}
+		return opts;
+	});
 
 	const countrows = $derived(
 		stats
@@ -30,6 +54,18 @@
 				}))
 			: []
 	);
+	const likedrows = $derived(
+		stats
+			? (expanded ? stats.byliked : stats.byliked.slice(0, 10)).map((t) => ({
+					label: '#' + t.name,
+					value: t.liked,
+					href: `${base}/films?tag=${encodeURIComponent(t.name)}`
+				}))
+			: []
+	);
+
+	const activerows = $derived(ratedmetric === 'liked' ? likedrows : ratingrows);
+	const activelist = $derived(ratedmetric === 'liked' ? stats?.byliked ?? [] : stats?.byrating ?? []);
 </script>
 
 {#if !stats}
@@ -121,14 +157,19 @@
 					</div>
 				{/if}
 			</Card>
-			<Card title="By avg rating">
+			<Card title={ratedmetric === 'liked' ? 'Most liked' : 'By avg rating'}>
+				{#snippet actions()}
+					{#if ratedopts.length > 1}
+						<MetricToggle value={ratedmetric} onchange={(v) => (ratedmetric = v)} options={ratedopts} />
+					{/if}
+				{/snippet}
 				<BarList
-					rows={ratingrows}
+					rows={activerows}
 					accent="var(--accent-amber)"
 					showrank={true}
-					format={(v) => v.toFixed(1) + '★'}
+					format={ratedmetric === 'liked' ? (v) => v.toLocaleString('en-US') : (v) => v.toFixed(1) + '★'}
 				/>
-				{#if stats && stats.byrating.length > 10}
+				{#if activelist.length > 10}
 					<div class="mt-3 pt-3 flex justify-center">
 						<button
 							class="font-mono text-[11px] tracking-[0.06em] uppercase transition-colors"
@@ -137,7 +178,7 @@
 							onmouseleave={(e) =>
 								((e.currentTarget as HTMLElement).style.color = 'var(--text-dim)')}
 							onclick={() => (expanded = !expanded)}
-							>{expanded ? '↑ show less' : '↓ show all ' + stats.byrating.length}</button
+							>{expanded ? '↑ show less' : '↓ show all ' + activelist.length}</button
 						>
 					</div>
 				{/if}
@@ -160,9 +201,11 @@
 						<span class="font-mono text-[10.5px]" style="color: var(--text-dim);"
 							>{t.count.toLocaleString('en-US')}</span
 						>
-						<span class="font-mono text-[10.5px] flex items-center gap-0.5" style="color: var(--text-muted);"
-							>{t.avg.toFixed(1)}<IconStarFilled width="10" height="10" class="text-[var(--accent-amber)] shrink-0" /></span
-						>
+						{#if t.avg > 0}
+							<span class="font-mono text-[10.5px] flex items-center gap-0.5" style="color: var(--text-muted);"
+								>{t.avg.toFixed(1)}<IconStarFilled width="10" height="10" class="text-[var(--accent-amber)] shrink-0" /></span
+							>
+						{/if}
 					</a>
 				{/each}
 			</div>

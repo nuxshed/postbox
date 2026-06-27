@@ -1,5 +1,6 @@
 <script lang="ts">
 	import IconStar from '~icons/tabler/star';
+	import IconHeart from '~icons/tabler/heart';
 
 	type Opt = { id: string; label: string };
 	type Props = {
@@ -14,7 +15,6 @@
 		{ id: 'rating', label: 'Rating' }
 	];
 	const opts = $derived(options ?? defaults);
-	const useicons = $derived(!options);
 </script>
 
 <div class="inline-flex p-[3px] rounded-[7px] border border-[var(--border)] bg-[var(--bar-track)]">
@@ -34,7 +34,7 @@
 			onclick={() => onchange(o.id)}
 			title={o.label}
 		>
-			{#if useicons && o.id === 'count'}
+			{#if o.id === 'count'}
 				<svg
 					width="13"
 					height="13"
@@ -48,8 +48,10 @@
 					<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
 					<circle cx="12" cy="12" r="3" />
 				</svg>
-			{:else if useicons && o.id === 'rating'}
+			{:else if o.id === 'rating'}
 				<IconStar width="13" height="13" stroke-width="2" />
+			{:else if o.id === 'liked'}
+				<IconHeart width="13" height="13" stroke-width="2" />
 			{:else}
 				{o.label}
 			{/if}

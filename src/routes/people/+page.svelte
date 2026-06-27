@@ -5,19 +5,35 @@
 	import { base } from '$app/paths';
 	import Card from '$lib/components/card.svelte';
 	import Infotip from '$lib/components/infotip.svelte';
+	import MetricToggle from '$lib/components/metrictoggle.svelte';
 	import IconStarFilled from '~icons/tabler/star-filled';
 
 	const dsctx = getContext<{ data: dataset | null }>('dataset');
 	const stats = $derived(dsctx.data ? computepeople(dsctx.data) : null);
 
+	const hasratings = $derived(dsctx.data?.films.some((f) => f.rating !== null) ?? false);
+	const haslikes = $derived(dsctx.data?.films.some((f) => f.liked) ?? false);
+
 	const TABS = ['Directors', 'Actors', 'Crew'] as const;
 	type Tab = (typeof TABS)[number];
 	let tab = $state<Tab>('Directors');
 	let expanded = $state(false);
+	let ratedmetric = $state('rating');
 
 	$effect(() => {
 		tab;
 		expanded = false;
+		if (dsctx.data && ratedopts.length > 0) {
+			ratedmetric = ratedopts.some((o) => o.id === 'rating') ? 'rating' : 'liked';
+		}
+	});
+	$effect(() => {
+		if (dsctx.data && ratedopts.length > 0) {
+			const hasCurrent = ratedopts.some((o) => o.id === ratedmetric);
+			if (!hasCurrent) {
+				ratedmetric = ratedopts[0].id;
+			}
+		}
 	});
 
 	const rows = $derived.by(() => {
@@ -35,6 +51,7 @@
 			.filter((r) => (r.ratedfilms ?? 0) >= minthreshold)
 			.sort((a, b) => b.avg - a.avg)
 	);
+	const allbyliked = $derived(rows.slice().sort((a, b) => b.liked - a.liked));
 	const tiptext = $derived(
 		tab === 'Crew'
 			? 'Only crew with at least 1 rated film are included.'
@@ -43,12 +60,25 @@
 
 	const bycount = $derived(expanded ? allbycount : allbycount.slice(0, 10));
 	const byrating = $derived(expanded ? allbyrating : allbyrating.slice(0, 10));
+	const byliked = $derived(expanded ? allbyliked : allbyliked.slice(0, 10));
 
 	const heroa = $derived(allbycount[0] ?? null);
-	const herob = $derived(allbyrating[0] ?? null);
+	const herob = $derived(ratedmetric === 'liked' ? allbyliked[0] ?? null : allbyrating[0] ?? null);
 
 	const maxcount = $derived(Math.max(...bycount.map((r) => r.watched), 1));
 	const maxrating = $derived(Math.max(...byrating.map((r) => r.avg), 1));
+	const maxliked = $derived(Math.max(...byliked.map((r) => r.liked), 1));
+
+	const ratedopts = $derived.by(() => {
+		const opts = [];
+		if (hasratings && allbyrating.length > 0) {
+			opts.push({ id: 'rating', label: 'Highest rated' });
+		}
+		if (haslikes || (!haslikes && !hasratings)) {
+			opts.push({ id: 'liked', label: 'Most liked' });
+		}
+		return opts;
+	});
 
 	/** initials from a full name */
 	function initials(name: string): string {
@@ -154,11 +184,16 @@
 				class="rounded-[14px] border border-[var(--border)] p-5 px-[22px] flex flex-col justify-center"
 				style="background: var(--bg-card);"
 			>
-				<div
-					class="font-mono text-[10.5px] tracking-[0.08em] uppercase mb-2"
-					style="color: var(--text-dim);"
-				>
-					Highest rated
+				<div class="flex items-center justify-between mb-2">
+					<div
+						class="font-mono text-[10.5px] tracking-[0.08em] uppercase"
+						style="color: var(--text-dim);"
+					>
+						{ratedmetric === 'liked' ? 'Most liked' : 'Highest rated'}
+					</div>
+					{#if ratedopts.length > 1}
+						<MetricToggle value={ratedmetric} onchange={(v) => (ratedmetric = v)} options={ratedopts} />
+					{/if}
 				</div>
 				{#if herob}
 					<div class="flex items-center gap-3 mb-1">
@@ -188,7 +223,9 @@
 						</a>
 					</div>
 					<div class="text-[12.5px]" style="color: var(--text-muted);">
-						{herob.avg.toFixed(2)} avg rating{herob.role ? ' · ' + herob.role : ''}
+						{ratedmetric === 'liked'
+							? herob.liked + ' liked film' + (herob.liked === 1 ? '' : 's')
+							: herob.avg.toFixed(2) + ' avg rating' + (herob.role ? ' · ' + herob.role : '')}
 					</div>
 				{/if}
 			</section>
@@ -267,13 +304,22 @@
 				{/if}
 			</Card>
 
-			<Card title="Highest rated">
+			<Card title={ratedmetric === 'liked' ? 'Most liked' : 'Highest rated'}>
 				{#snippet actions()}
-					<Infotip text={tiptext} />
+					<div class="flex items-center gap-2">
+						{#if ratedmetric === 'rating'}
+							<Infotip text={tiptext} />
+						{/if}
+						{#if ratedopts.length > 1}
+							<MetricToggle value={ratedmetric} onchange={(v) => (ratedmetric = v)} options={ratedopts} />
+						{/if}
+					</div>
 				{/snippet}
+				{@const activelist = ratedmetric === 'liked' ? byliked : byrating}
+				{@const maxval = ratedmetric === 'liked' ? maxliked : maxrating}
 				<div class="flex flex-col gap-[9px]">
-					{#each byrating as person, i (person.name + '|' + i)}
-						{@const w = Math.max(2, (person.avg / maxrating) * 100)}
+					{#each activelist as person, i (person.name + '|' + i)}
+						{@const w = Math.max(2, ratedmetric === 'liked' ? (person.liked / maxval) * 100 : (person.avg / maxval) * 100)}
 						<div
 							class="grid items-center gap-3"
 							style="grid-template-columns: auto 28px minmax(80px, 1fr) 1fr auto;"
@@ -323,13 +369,18 @@
 								class="font-mono text-[12.5px] font-bold min-w-[42px] flex items-center justify-end gap-0.5"
 								style="color: var(--text);"
 							>
-								{person.avg.toFixed(1)}
-								<IconStarFilled width="11" height="11" class="text-[var(--accent-amber)] shrink-0" />
+								{#if ratedmetric === 'liked'}
+									{person.liked}
+								{:else}
+									{person.avg.toFixed(1)}
+									<IconStarFilled width="11" height="11" class="text-[var(--accent-amber)] shrink-0" />
+								{/if}
 							</span>
 						</div>
 					{/each}
 				</div>
-				{#if allbyrating.length > 10}
+				{@const allactive = ratedmetric === 'liked' ? allbyliked : allbyrating}
+				{#if allactive.length > 10}
 					<div class="mt-3 pt-3 border-t border-[var(--border)] flex justify-center">
 						<button
 							class="font-mono text-[11px] tracking-[0.06em] uppercase transition-colors"
@@ -338,7 +389,7 @@
 							onmouseleave={(e) =>
 								((e.currentTarget as HTMLElement).style.color = 'var(--text-dim)')}
 							onclick={() => (expanded = !expanded)}
-							>{expanded ? '↑ show less' : '↓ show all ' + allbyrating.length}</button
+							>{expanded ? '↑ show less' : '↓ show all ' + allactive.length}</button
 						>
 					</div>
 				{/if}

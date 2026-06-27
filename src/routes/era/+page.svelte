@@ -22,15 +22,43 @@
 	let decademetric = $state('count');
 	let seasonmetric = $state('count');
 
+	const hasratings = $derived(dsctx.data?.films.some((f) => f.rating !== null) ?? false);
+	const haslikes = $derived(dsctx.data?.films.some((f) => f.liked) ?? false);
+	const toggleopts = $derived.by(() => {
+		const opts = [{ id: 'count', label: 'Watched' }];
+		if (haslikes) {
+			opts.push({ id: 'liked', label: 'Liked' });
+		}
+		if (hasratings && stats && (stats.decadedist.some((d) => d.avg > 0) || stats.seasonal.some((s) => s.avg > 0))) {
+			opts.push({ id: 'rating', label: 'Rating' });
+		}
+		return opts;
+	});
+
+	$effect(() => {
+		if (toggleopts.length > 0) {
+			if (!toggleopts.some((o) => o.id === decademetric)) {
+				decademetric = toggleopts[0].id;
+			}
+			if (!toggleopts.some((o) => o.id === seasonmetric)) {
+				seasonmetric = toggleopts[0].id;
+			}
+		}
+	});
+
 	const decaderows = $derived(
 		stats
 			? stats.decadedist.map((d) => ({
 					label: d.label,
-					value: decademetric === 'count' ? d.count : d.avg,
+					value: decademetric === 'count' ? d.count : decademetric === 'liked' ? d.liked : d.avg,
 					title:
 						d.label +
 						': ' +
-						(decademetric === 'count' ? d.count + ' films' : d.avg.toFixed(2) + '★'),
+						(decademetric === 'count'
+							? d.count + ' films'
+							: decademetric === 'liked'
+								? d.liked + ' liked'
+								: d.avg.toFixed(2) + '★'),
 					decade: d.decade
 				}))
 			: []
@@ -53,7 +81,7 @@
 		<!-- decade breakdown -->
 		<Card title="By decade">
 			{#snippet actions()}
-				<MetricToggle value={decademetric} onchange={(v) => (decademetric = v)} />
+				<MetricToggle value={decademetric} onchange={(v) => (decademetric = v)} options={toggleopts} />
 			{/snippet}
 			<ColumnChart
 				data={decaderows}
@@ -84,19 +112,21 @@
 
 			<Card title="Seasonal patterns">
 				{#snippet actions()}
-					<MetricToggle value={seasonmetric} onchange={(v) => (seasonmetric = v)} />
+					<MetricToggle value={seasonmetric} onchange={(v) => (seasonmetric = v)} options={toggleopts} />
 				{/snippet}
 				<div class="flex-1 flex flex-col justify-end">
 					<ColumnChart
 						data={stats.seasonal.map((s) => ({
 							label: s.month.slice(0, 3),
-							value: seasonmetric === 'count' ? s.count : s.avg,
+							value: seasonmetric === 'count' ? s.count : seasonmetric === 'liked' ? s.liked : s.avg,
 							title:
 								s.month +
 								': ' +
 								(seasonmetric === 'count'
 									? s.count.toLocaleString() + ' films'
-									: s.avg.toFixed(2) + '★')
+									: seasonmetric === 'liked'
+										? s.liked + ' liked'
+										: s.avg.toFixed(2) + '★')
 						}))}
 						accent="var(--accent-blue)"
 						height={140}
@@ -108,10 +138,10 @@
 						class="font-num font-bold text-[20px] tracking-[-0.02em]"
 						style="color: var(--accent-blue);"
 					>
-						{seasonmetric === 'count' ? seasonavgcount : seasonavgrating}
+						{seasonmetric === 'count' ? seasonavgcount : seasonmetric === 'liked' ? stats.seasonal.reduce((a, s) => a + s.liked, 0) : seasonavgrating}
 					</span>
 					<span class="text-[12px]" style="color: var(--text-muted);">
-						{seasonmetric === 'count' ? 'avg films per month' : 'avg rating across all months'}
+						{seasonmetric === 'count' ? 'avg films per month' : seasonmetric === 'liked' ? 'total liked films logged' : 'avg rating across all months'}
 					</span>
 				</div>
 			</Card>

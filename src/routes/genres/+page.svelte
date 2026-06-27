@@ -6,16 +6,53 @@
 	import BarList from '$lib/components/barlist.svelte';
 	import Card from '$lib/components/card.svelte';
 	import Infotip from '$lib/components/infotip.svelte';
+	import MetricToggle from '$lib/components/metrictoggle.svelte';
 
 	const dsctx = getContext<{ data: dataset | null }>('dataset');
 	const stats = $derived(dsctx.data ? computegenres(dsctx.data) : null);
 
+	const hasratings = $derived(dsctx.data?.films.some((f) => f.rating !== null) ?? false);
+	const haslikes = $derived(dsctx.data?.films.some((f) => f.liked) ?? false);
+
+	// toggle for the "highest rated" cards
+	let ratedmetric = $state('rating');
+	$effect(() => {
+		if (dsctx.data && ratedopts.length > 0) {
+			const hasCurrent = ratedopts.some((o) => o.id === ratedmetric);
+			if (!hasCurrent) {
+				ratedmetric = ratedopts[0].id;
+			}
+		}
+	});
+
+	const ratedopts = $derived.by(() => {
+		const opts = [];
+		if (hasratings && stats && stats.toprated.length > 0) {
+			opts.push({ id: 'rating', label: 'Highest rated' });
+		}
+		if (haslikes || (!haslikes && !hasratings)) {
+			opts.push({ id: 'liked', label: 'Most liked' });
+		}
+		return opts;
+	});
+
 	const watchwedrows = $derived(
 		stats ? stats.topwatched.map((g) => ({ label: g.name, value: g.count, href: `${base}/films?genre=${encodeURIComponent(g.name)}` })) : []
 	);
-	const ratedrows = $derived(
-		stats ? stats.toprated.map((g) => ({ label: g.name, value: g.avg, href: `${base}/films?genre=${encodeURIComponent(g.name)}` })) : []
-	);
+	const ratedrows = $derived.by(() => {
+		if (!stats) return [];
+		const list = ratedmetric === 'liked' ? stats.topliked : stats.toprated;
+		return list.map((g) => ({
+			label: g.name,
+			value: ratedmetric === 'liked' ? g.liked : g.avg,
+			href: `${base}/films?genre=${encodeURIComponent(g.name)}`
+		}));
+	});
+
+	const herorated = $derived.by(() => {
+		if (!stats) return null;
+		return ratedmetric === 'liked' ? stats.toplikedgenre : stats.topratedgenre;
+	});
 </script>
 
 {#if !stats}
@@ -71,41 +108,55 @@
 				class="rounded-[14px] border border-[var(--border)] p-5 px-[22px] flex flex-col justify-center"
 				style="background: var(--bg-card);"
 			>
-				<div
-					class="font-mono text-[10.5px] tracking-[0.08em] uppercase mb-2"
-					style="color: var(--text-dim);"
-				>
-					Highest rated
+				<div class="flex items-center justify-between mb-2">
+					<div
+						class="font-mono text-[10.5px] tracking-[0.08em] uppercase"
+						style="color: var(--text-dim);"
+					>
+						{ratedmetric === 'liked' ? 'Most liked' : 'Highest rated'}
+					</div>
+					{#if ratedopts.length > 1}
+						<MetricToggle value={ratedmetric} onchange={(v) => (ratedmetric = v)} options={ratedopts} />
+					{/if}
 				</div>
-				<a
-					href="{base}/films?genre={encodeURIComponent(stats.topratedgenre.name)}"
-					class="font-display font-bold text-[34px] leading-[1.05] tracking-[-0.025em] mb-1 transition-[color] block"
-					style="color: var(--accent-amber);"
-					onmouseenter={(e) => ((e.currentTarget as HTMLElement).style.color = 'var(--accent)')}
-					onmouseleave={(e) => ((e.currentTarget as HTMLElement).style.color = 'var(--accent-amber)')}
-				>
-					{stats.topratedgenre.name}
-				</a>
-				<div class="text-[12.5px]" style="color: var(--text-muted);">
-					{stats.topratedgenre.avg.toFixed(2)} avg rating
-				</div>
+				{#if herorated}
+					<a
+						href="{base}/films?genre={encodeURIComponent(herorated.name)}"
+						class="font-display font-bold text-[34px] leading-[1.05] tracking-[-0.025em] mb-1 transition-[color] block"
+						style="color: var(--accent-amber);"
+						onmouseenter={(e) => ((e.currentTarget as HTMLElement).style.color = 'var(--accent)')}
+						onmouseleave={(e) => ((e.currentTarget as HTMLElement).style.color = 'var(--accent-amber)')}
+					>
+						{herorated.name}
+					</a>
+					<div class="text-[12.5px]" style="color: var(--text-muted);">
+						{ratedmetric === 'liked' ? herorated.liked + ' liked films' : herorated.avg.toFixed(2) + ' avg rating'}
+					</div>
+				{/if}
 			</section>
 		</div>
 
-		<!-- most watched + highest rated -->
+		<!-- most watched + highest rated/liked -->
 		<div class="grid grid-cols-2 gap-[18px]">
 			<Card title="Most watched">
 				<BarList rows={watchwedrows} accent="var(--accent-blue)" showrank={true} />
 			</Card>
-			<Card title="Highest rated">
+			<Card title={ratedmetric === 'liked' ? 'Most liked' : 'Highest rated'}>
 				{#snippet actions()}
-					<Infotip text="Only genres with at least 20 logged entries are included." />
+					<div class="flex items-center gap-2">
+						{#if ratedmetric === 'rating'}
+							<Infotip text="Only genres with at least 20 logged entries are included." />
+						{/if}
+						{#if ratedopts.length > 1}
+							<MetricToggle value={ratedmetric} onchange={(v) => (ratedmetric = v)} options={ratedopts} />
+						{/if}
+					</div>
 				{/snippet}
 				<BarList
 					rows={ratedrows}
 					accent="var(--accent-amber)"
 					showrank={true}
-					format={(v) => v.toFixed(2)}
+					format={ratedmetric === 'liked' ? (v) => v.toLocaleString('en-US') : (v) => v.toFixed(2)}
 				/>
 			</Card>
 		</div>
@@ -179,9 +230,11 @@
 								<span class="font-mono text-[12px] font-bold" style="color: var(--text);"
 									>{g.count.toLocaleString('en-US')}</span
 								>
-								<span class="font-mono text-[10.5px]" style="color: var(--text-muted);"
-									>{g.avg.toFixed(1)}</span
-								>
+								{#if g.avg > 0}
+									<span class="font-mono text-[10.5px]" style="color: var(--text-muted);"
+										>{g.avg.toFixed(1)}</span
+									>
+								{/if}
 							</div>
 						</a>
 					{/each}

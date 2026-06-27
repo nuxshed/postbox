@@ -15,6 +15,17 @@ function findfile(files: Record<string, Uint8Array>, name: string): string | nul
 	return null;
 }
 
+/** find likes/films.csv in the zip, which lives in a subdirectory */
+function findlikes(files: Record<string, Uint8Array>): string | null {
+	const dec = new TextDecoder();
+	for (const [path, bytes] of Object.entries(files)) {
+		if (path.endsWith('/likes/films.csv') || path === 'likes/films.csv') {
+			return dec.decode(bytes);
+		}
+	}
+	return null;
+}
+
 export async function loadfromzip(
 	file: File,
 	onprogress: (msg: string, done?: number, total?: number) => void
@@ -26,11 +37,12 @@ export async function loadfromzip(
 	const watched = findfile(files, 'watched.csv') ?? '';
 	const ratings = findfile(files, 'ratings.csv') ?? '';
 	const diary = findfile(files, 'diary.csv') ?? '';
+	const likes = findlikes(files) ?? '';
 	const profilecsv = findfile(files, 'profile.csv');
 	const profile = profilecsv ? parseprofile(profilecsv) : null;
 
 	onprogress('parsing csv files...');
-	const { films, diary: diaryentries } = parseall(watched, ratings, diary);
+	const { films, diary: diaryentries } = parseall(watched, ratings, diary, likes);
 	onprogress(`parsed ${films.length} films, ${diaryentries.length} diary entries`);
 
 	const existing = loadstored();
@@ -66,14 +78,15 @@ export async function loadpipeline(
 	}
 
 	onprogress('parsing csv files...');
-	const [watchedcsv, ratingscsv, diarycsv, profilecsv] = await Promise.all([
+	const [watchedcsv, ratingscsv, diarycsv, profilecsv, likescsv] = await Promise.all([
 		fetch('/sample/watched.csv').then((r) => r.text()),
 		fetch('/sample/ratings.csv').then((r) => r.text()),
 		fetch('/sample/diary.csv').then((r) => r.text()),
-		fetch('/sample/profile.csv').then((r) => r.text())
+		fetch('/sample/profile.csv').then((r) => r.text()),
+		fetch('/sample/likes/films.csv').then((r) => r.text()).catch(() => '')
 	]);
 
-	const { films, diary } = parseall(watchedcsv, ratingscsv, diarycsv);
+	const { films, diary } = parseall(watchedcsv, ratingscsv, diarycsv, likescsv);
 	const profile = parseprofile(profilecsv);
 	onprogress(`parsed ${films.length} films, ${diary.length} diary entries`);
 

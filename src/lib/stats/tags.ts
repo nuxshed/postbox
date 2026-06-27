@@ -1,11 +1,12 @@
 import type { dataset } from '$lib/pipeline/types';
 
-export type tagstat = { name: string; count: number; avg: number };
+export type tagstat = { name: string; count: number; avg: number; liked: number };
 
 export type tagstats = {
 	tags: tagstat[];
 	bycount: tagstat[];
 	byrating: tagstat[];
+	byliked: tagstat[];
 	toptag: tagstat;
 	totallogs: number;
 	avgacross: number;
@@ -20,7 +21,12 @@ export function computetags(data: dataset): tagstats {
 		filmrating.set(`${f.name}|${f.year}`, f.rating);
 	}
 
-	const tagmap = new Map<string, { films: Set<string>; ratings: number[] }>();
+	const likedset = new Set<string>();
+	for (const f of films) {
+		if (f.liked) likedset.add(`${f.name}|${f.year}`);
+	}
+
+	const tagmap = new Map<string, { films: Set<string>; ratings: number[]; liked: number }>();
 	for (const entry of diary) {
 		if (!entry.tags) continue;
 		const tags = entry.tags
@@ -31,7 +37,7 @@ export function computetags(data: dataset): tagstats {
 		const rating = filmrating.get(filmKey) ?? entry.rating;
 		for (const tag of tags) {
 			if (!tagmap.has(tag)) {
-				tagmap.set(tag, { films: new Set(), ratings: [] });
+				tagmap.set(tag, { films: new Set(), ratings: [], liked: 0 });
 			}
 			const e = tagmap.get(tag)!;
 			if (!e.films.has(filmKey)) {
@@ -39,14 +45,16 @@ export function computetags(data: dataset): tagstats {
 				if (rating !== null && rating !== undefined && rating > 0) {
 					e.ratings.push(rating);
 				}
+				if (likedset.has(filmKey)) e.liked += 1;
 			}
 		}
 	}
 
 	const tags = [...tagmap.entries()]
-		.map(([name, { films: taggedFilms, ratings }]) => ({
+		.map(([name, { films: taggedFilms, ratings, liked }]) => ({
 			name,
 			count: taggedFilms.size,
+			liked,
 			avg:
 				ratings.length > 0
 					? Math.round((ratings.reduce((a, b) => a + b, 0) / ratings.length) * 100) / 100
@@ -64,7 +72,8 @@ export function computetags(data: dataset): tagstats {
 		tags,
 		bycount: tags.slice(),
 		byrating: tags.slice().sort((a, b) => b.avg - a.avg),
-		toptag: tags[0] ?? { name: '—', count: 0, avg: 0 },
+		byliked: tags.slice().sort((a, b) => b.liked - a.liked),
+		toptag: tags[0] ?? { name: '—', count: 0, avg: 0, liked: 0 },
 		totallogs,
 		avgacross
 	};

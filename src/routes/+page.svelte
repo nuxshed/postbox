@@ -15,29 +15,66 @@
 	let dirmetric = $state('count');
 	let genremetric = $state('count');
 
-	const dirrows = $derived(
-		stats
-			? dirmetric === 'count'
-				? stats.directors.slice(0, 8).map((d) => ({ label: d.name, value: d.watched, href: `${base}/films?director=${encodeURIComponent(d.name)}` }))
-				: stats.directors
-						.filter((d) => d.avg > 0)
-						.sort((a, b) => b.avg - a.avg)
-						.slice(0, 8)
-						.map((d) => ({ label: d.name, value: d.avg, href: `${base}/films?director=${encodeURIComponent(d.name)}` }))
-			: []
-	);
+	const toggleopts = $derived.by(() => {
+		if (!stats) return [{ id: 'count', label: 'Watched' }];
+		const opts = [{ id: 'count', label: 'Watched' }];
+		if (stats.haslikes) {
+			opts.push({ id: 'liked', label: 'Liked' });
+		}
+		if (stats.hasratings && stats.directors.some((d) => d.avg > 0)) {
+			opts.push({ id: 'rating', label: 'Rating' });
+		}
+		return opts;
+	});
 
-	const genrerows = $derived(
-		stats
-			? genremetric === 'count'
-				? stats.genres.slice(0, 8).map((g) => ({ label: g.name, value: g.count, href: `${base}/films?genre=${encodeURIComponent(g.name)}` }))
-				: stats.genres
-						.filter((g) => g.avg > 0)
-						.sort((a, b) => b.avg - a.avg)
-						.slice(0, 8)
-						.map((g) => ({ label: g.name, value: g.avg, href: `${base}/films?genre=${encodeURIComponent(g.name)}` }))
-			: []
-	);
+	$effect(() => {
+		if (toggleopts.length > 0) {
+			if (!toggleopts.some((o) => o.id === dirmetric)) {
+				dirmetric = toggleopts[0].id;
+			}
+			if (!toggleopts.some((o) => o.id === genremetric)) {
+				genremetric = toggleopts[0].id;
+			}
+		}
+	});
+
+	const dirrows = $derived.by(() => {
+		if (!stats) return [];
+		if (dirmetric === 'rating') {
+			return stats.directors
+				.filter((d) => d.avg > 0)
+				.sort((a, b) => b.avg - a.avg)
+				.slice(0, 8)
+				.map((d) => ({ label: d.name, value: d.avg, href: `${base}/films?director=${encodeURIComponent(d.name)}` }));
+		}
+		if (dirmetric === 'liked') {
+			return stats.directors
+				.slice()
+				.sort((a, b) => b.liked - a.liked)
+				.slice(0, 8)
+				.map((d) => ({ label: d.name, value: d.liked, href: `${base}/films?director=${encodeURIComponent(d.name)}` }));
+		}
+		return stats.directors.slice(0, 8).map((d) => ({ label: d.name, value: d.watched, href: `${base}/films?director=${encodeURIComponent(d.name)}` }));
+	});
+
+	const genrerows = $derived.by(() => {
+		if (!stats) return [];
+		if (genremetric === 'rating') {
+			return stats.genres
+				.filter((g) => g.avg > 0)
+				.sort((a, b) => b.avg - a.avg)
+				.slice(0, 8)
+				.map((g) => ({ label: g.name, value: g.avg, href: `${base}/films?genre=${encodeURIComponent(g.name)}` }));
+		}
+		if (genremetric === 'liked') {
+			return stats.genres
+				.slice()
+				.sort((a, b) => b.liked - a.liked)
+				.slice(0, 8)
+				.map((g) => ({ label: g.name, value: g.liked, href: `${base}/films?genre=${encodeURIComponent(g.name)}` }));
+		}
+		return stats.genres.slice(0, 8).map((g) => ({ label: g.name, value: g.count, href: `${base}/films?genre=${encodeURIComponent(g.name)}` }));
+	});
 
 	function ratingval(v: number) {
 		return v.toFixed(1) + ' ★';
@@ -211,7 +248,7 @@
 					>
 						Directors
 					</div>
-					<MetricToggle value={dirmetric} onchange={(v) => (dirmetric = v)} />
+					<MetricToggle value={dirmetric} onchange={(v) => (dirmetric = v)} options={toggleopts} />
 				</div>
 				<BarList
 					rows={dirrows}
@@ -231,7 +268,7 @@
 					>
 						Genres
 					</div>
-					<MetricToggle value={genremetric} onchange={(v) => (genremetric = v)} />
+					<MetricToggle value={genremetric} onchange={(v) => (genremetric = v)} options={toggleopts} />
 				</div>
 				<BarList
 					rows={genrerows}
@@ -392,7 +429,7 @@
 				>
 					Directors
 				</div>
-				<MetricToggle value={dirmetric} onchange={(v) => (dirmetric = v)} />
+				<MetricToggle value={dirmetric} onchange={(v) => (dirmetric = v)} options={toggleopts} />
 			</div>
 			<BarList
 				rows={dirrows}
@@ -413,7 +450,7 @@
 				>
 					Genres
 				</div>
-				<MetricToggle value={genremetric} onchange={(v) => (genremetric = v)} />
+				<MetricToggle value={genremetric} onchange={(v) => (genremetric = v)} options={toggleopts} />
 			</div>
 			<BarList
 				rows={genrerows}
@@ -600,7 +637,7 @@
 				>
 					Directors
 				</div>
-				<MetricToggle value={dirmetric} onchange={(v) => (dirmetric = v)} />
+				<MetricToggle value={dirmetric} onchange={(v) => (dirmetric = v)} options={toggleopts} />
 			</div>
 			<BarList
 				rows={dirrows}

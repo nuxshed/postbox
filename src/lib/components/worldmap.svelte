@@ -4,7 +4,7 @@
 	import { feature, mesh } from 'topojson-client';
 	import type { Topology, Objects } from 'topojson-specification';
 
-	type CountryEntry = { name: string; count: number; avg: number };
+	type CountryEntry = { name: string; count: number; avg: number; liked: number };
 	type Props = {
 		data: CountryEntry[];
 		metric: string;
@@ -150,13 +150,14 @@
 	const datamap = $derived(new Map(data.map((d) => [d.name, d])));
 	const maxcount = $derived(Math.max(...data.map((d) => d.count), 1));
 	const maxavg = $derived(Math.max(...data.map((d) => d.avg ?? 0), 1));
+	const maxliked = $derived(Math.max(...data.map((d) => d.liked ?? 0), 1));
 
 	function getopacity(id: number): number | null {
 		const name = ISO[id];
 		const entry = name ? datamap.get(name) : null;
 		if (!entry) return null;
-		const val = metric === 'count' ? entry.count : (entry.avg ?? 0);
-		const mx = metric === 'count' ? maxcount : maxavg;
+		const val = metric === 'liked' ? (entry.liked ?? 0) : metric === 'count' ? entry.count : (entry.avg ?? 0);
+		const mx = metric === 'liked' ? maxliked : metric === 'count' ? maxcount : maxavg;
 		return 0.18 + Math.min(1, val / mx) * 0.72;
 	}
 

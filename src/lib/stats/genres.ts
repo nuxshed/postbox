@@ -1,13 +1,15 @@
 import type { dataset } from '$lib/pipeline/types';
 
-export type genrestat = { name: string; count: number; avg: number };
+export type genrestat = { name: string; count: number; avg: number; liked: number };
 
 export type genrestats = {
 	genrecount: genrestat[];
 	topwatched: genrestat[];
 	toprated: genrestat[];
+	topliked: genrestat[];
 	topgenre: genrestat;
 	topratedgenre: genrestat;
+	toplikedgenre: genrestat;
 	nichescore: number;
 	nichedesc: string;
 	subtitledpct: number;
@@ -17,21 +19,23 @@ export type genrestats = {
 export function computegenres(data: dataset): genrestats {
 	const { films } = data;
 
-	const genremap = new Map<string, { count: number; ratings: number[] }>();
+	const genremap = new Map<string, { count: number; ratings: number[]; liked: number }>();
 	for (const f of films) {
 		if (!f.tmdb) continue;
 		for (const g of f.tmdb.genres) {
-			if (!genremap.has(g)) genremap.set(g, { count: 0, ratings: [] });
+			if (!genremap.has(g)) genremap.set(g, { count: 0, ratings: [], liked: 0 });
 			const e = genremap.get(g)!;
 			e.count += 1;
 			if (f.rating !== null && f.rating > 0) e.ratings.push(f.rating);
+			if (f.liked) e.liked += 1;
 		}
 	}
 
 	const genrecount = [...genremap.entries()]
-		.map(([name, { count, ratings }]) => ({
+		.map(([name, { count, ratings, liked }]) => ({
 			name,
 			count,
+			liked,
 			avg:
 				ratings.length > 0
 					? Math.round((ratings.reduce((a, b) => a + b, 0) / ratings.length) * 100) / 100
@@ -44,6 +48,7 @@ export function computegenres(data: dataset): genrestats {
 		.filter((g) => g.count >= 20)
 		.sort((a, b) => b.avg - a.avg)
 		.slice(0, 10);
+	const topliked = genrecount.slice().sort((a, b) => b.liked - a.liked).slice(0, 10);
 
 	const enriched = films.filter((f) => f.tmdb);
 	const pops = enriched.map((f) => f.tmdb!.popularity);
@@ -62,14 +67,16 @@ export function computegenres(data: dataset): genrestats {
 					? `Balanced taste — ${subtitledpct}% subtitled, comfortable across popular and niche cinema.`
 					: `Mainstream lean — ${subtitledpct}% subtitled, strong preference for widely-seen popular films.`;
 
-	const fallback: genrestat = { name: '—', count: 0, avg: 0 };
+	const fallback: genrestat = { name: '—', count: 0, avg: 0, liked: 0 };
 
 	return {
 		genrecount,
 		topwatched,
 		toprated,
+		topliked,
 		topgenre: genrecount[0] ?? fallback,
 		topratedgenre: genrecount.slice().sort((a, b) => b.avg - a.avg)[0] ?? fallback,
+		toplikedgenre: topliked[0] ?? fallback,
 		nichescore,
 		nichedesc,
 		subtitledpct,

@@ -29,6 +29,7 @@ export type film = {
 	year: number;
 	uri: string;
 	rating: number | null;
+	liked: boolean;
 	firstwatched: string;
 	lastwatched: string;
 	watchcount: number;
