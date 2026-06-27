@@ -1,4 +1,5 @@
 import type { dataset } from '$lib/pipeline/types';
+import { filmslug } from '$lib/utils';
 
 export type overstats = {
 	totalfilms: number;
@@ -14,7 +15,7 @@ export type overstats = {
 	runtimebuckets: { label: string; count: number }[];
 	directors: { name: string; watched: number; avg: number }[];
 	genres: { name: string; count: number; avg: number }[];
-	insights: { k: string; v: string; sub: string; href?: string }[];
+	insights: { k: string; v: string; sub: string; href?: string; subhref?: string }[];
 };
 
 const STARS = [0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5];
@@ -149,7 +150,8 @@ export function computeoverview(data: dataset): overstats {
 						'h ' +
 						(longestfilm.tmdb.runtime % 60) +
 						'm',
-					sub: longestfilm.name
+					sub: longestfilm.name,
+					subhref: `/films/${filmslug(longestfilm.uri)}`
 				}
 			: { k: 'Longest sit', v: '—', sub: 'no runtime data' },
 		{ k: 'Subtitled', v: subtitledpct + '%', sub: 'of everything you watch' },

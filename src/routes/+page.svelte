@@ -120,7 +120,7 @@
 						{fmtnum(stats.hourstotal)}<small class="text-[26px] opacity-70">h</small>
 					</div>
 					<div class="text-[13px] mt-[5px]" style="color: var(--text-muted);">
-						In the dark · ≈ {stats.daystotal} days
+						Hours watched
 					</div>
 				</div>
 				<div>
@@ -282,7 +282,19 @@
 							</div>
 						{/if}
 						<div class="text-[12px] mt-[7px] leading-[1.35]" style="color: var(--text-muted);">
-							{it.sub}
+							{#if it.subhref}
+								<a
+									href="{base}{it.subhref}"
+									class="transition-[color] inline-block"
+									style="color: var(--text-muted);"
+									onmouseenter={(e) => ((e.currentTarget as HTMLElement).style.color = 'var(--accent)')}
+									onmouseleave={(e) => ((e.currentTarget as HTMLElement).style.color = 'var(--text-muted)')}
+								>
+									{it.sub}
+								</a>
+							{:else}
+								{it.sub}
+							{/if}
 						</div>
 					</div>
 				{/each}
@@ -294,8 +306,8 @@
 	{@const heroes = [
 		{ v: fmtnum(stats.totalfilms), l: 'Films watched', color: 'var(--text)' },
 		{ v: stats.avgrating.toFixed(2), l: 'Average rating', color: 'var(--accent-green)' },
-		{ v: fmtnum(stats.hourstotal) + 'h', l: 'Watch time', color: 'var(--accent-amber)' },
-		{ v: String(stats.filmsthisyear), l: String(stats.thisyear), color: 'var(--accent-blue)' }
+		{ v: fmtnum(stats.hourstotal) + 'h', l: 'Hours watched', color: 'var(--accent-amber)' },
+		{ v: String(stats.filmsthisyear), l: 'Films in ' + stats.thisyear, color: 'var(--accent-blue)' }
 	]}
 	<div class="grid gap-4" style="grid-template-columns: repeat(4, 1fr);">
 		{#each heroes as h (h.l)}
@@ -419,7 +431,7 @@
 				class="font-display font-semibold text-[17px] tracking-[-0.01em] mb-4"
 				style="color: var(--text);"
 			>
-				Insights — the shape of your taste
+				Insights
 			</h3>
 			<div
 				class="grid gap-px border border-[var(--border)] rounded-[12px] overflow-hidden"
@@ -450,7 +462,19 @@
 							</div>
 						{/if}
 						<div class="text-[12px] mt-[7px] leading-[1.35]" style="color: var(--text-muted);">
-							{it.sub}
+							{#if it.subhref}
+								<a
+									href="{base}{it.subhref}"
+									class="transition-[color] inline-block"
+									style="color: var(--text-muted);"
+									onmouseenter={(e) => ((e.currentTarget as HTMLElement).style.color = 'var(--accent)')}
+									onmouseleave={(e) => ((e.currentTarget as HTMLElement).style.color = 'var(--text-muted)')}
+								>
+									{it.sub}
+								</a>
+							{:else}
+								{it.sub}
+							{/if}
 						</div>
 					</div>
 				{/each}
@@ -464,25 +488,25 @@
 		{
 			v: fmtnum(stats.totalfilms),
 			l: 'Films watched',
-			s: fmtnum(stats.totalentries) + ' total entries',
+			s: '',
 			color: 'var(--text)'
 		},
 		{
 			v: stats.avgrating.toFixed(2),
 			l: 'Average rating',
-			s: 'across the whole library',
+			s: '',
 			color: 'var(--accent-green)'
 		},
 		{
 			v: fmtnum(stats.hourstotal) + 'h',
-			l: 'Time in the dark',
-			s: '≈ ' + stats.daystotal + ' days in the dark',
+			l: 'Hours watched',
+			s: '',
 			color: 'var(--accent-amber)'
 		},
 		{
 			v: String(stats.filmsthisyear),
 			l: 'Films in ' + stats.thisyear,
-			s: 'and counting',
+			s: '',
 			color: 'var(--accent-blue)'
 		}
 	]}
@@ -500,7 +524,9 @@
 					{h.v}
 				</div>
 				<div class="text-[14px] mt-3 font-medium" style="color: var(--text);">{h.l}</div>
-				<div class="font-mono text-[11px] mt-1" style="color: var(--text-dim);">{h.s}</div>
+				{#if h.s}
+					<div class="font-mono text-[11px] mt-1" style="color: var(--text-dim);">{h.s}</div>
+				{/if}
 			</div>
 		{/each}
 	</div>
@@ -593,7 +619,7 @@
 			class="font-display font-semibold text-[16px] tracking-[-0.01em] mb-5"
 			style="color: var(--text);"
 		>
-			Insights — the shape of your taste
+			Insights
 		</h3>
 		<div
 			class="grid gap-px border border-[var(--border)] rounded-[12px] overflow-hidden"
@@ -607,14 +633,36 @@
 					>
 						{it.k}
 					</div>
-					<div
-						class="font-num font-bold text-[27px] tracking-[-0.02em] mt-[10px] leading-none"
-						style="color: var(--text);"
-					>
-						{it.v}
-					</div>
+					{#if it.href}
+						<a
+							href="{base}{it.href}"
+							class="font-num font-bold text-[27px] tracking-[-0.02em] mt-[10px] leading-none transition-[color] block"
+							style="color: var(--text);"
+							onmouseenter={(e) => ((e.currentTarget as HTMLElement).style.color = 'var(--accent)')}
+							onmouseleave={(e) => ((e.currentTarget as HTMLElement).style.color = 'var(--text)')}
+						>{it.v}</a>
+					{:else}
+						<div
+							class="font-num font-bold text-[27px] tracking-[-0.02em] mt-[10px] leading-none"
+							style="color: var(--text);"
+						>
+							{it.v}
+						</div>
+					{/if}
 					<div class="text-[12px] mt-[7px] leading-[1.35]" style="color: var(--text-muted);">
-						{it.sub}
+						{#if it.subhref}
+							<a
+								href="{base}{it.subhref}"
+								class="transition-[color] inline-block"
+								style="color: var(--text-muted);"
+								onmouseenter={(e) => ((e.currentTarget as HTMLElement).style.color = 'var(--accent)')}
+								onmouseleave={(e) => ((e.currentTarget as HTMLElement).style.color = 'var(--text-muted)')}
+							>
+								{it.sub}
+							</a>
+						{:else}
+							{it.sub}
+						{/if}
 					</div>
 				</div>
 			{/each}

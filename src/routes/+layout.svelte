@@ -140,15 +140,26 @@
 				{/each}
 			</nav>
 
-			<!-- user avatar + dropdown -->
-			<div class="ml-auto flex items-center gap-[9px] relative">
-				<span class="text-[13px] font-mono" style="color: var(--text-muted);">{username}</span>
+			<!-- user dropdown -->
+			<div class="ml-auto flex items-center relative">
 				<button
-					class="w-[26px] h-[26px] rounded-full shrink-0 focus:outline-none"
-					style="background: linear-gradient(135deg, var(--accent), color-mix(in oklab, var(--accent) 40%, #222));"
+					class="relative text-[13.5px] font-medium tracking-[0.01em] px-3 py-[7px] rounded-[7px] transition-colors cursor-pointer flex items-center gap-1.5 focus:outline-none"
+					style="color: {dropdownopen ? 'var(--text)' : 'var(--text-muted)'}; background: {dropdownopen ? 'var(--bar-track)' : ''};"
+					onmouseenter={(e) => {
+						(e.currentTarget as HTMLElement).style.color = 'var(--text)';
+						(e.currentTarget as HTMLElement).style.background = 'var(--bar-track)';
+					}}
+					onmouseleave={(e) => {
+						if (!dropdownopen) {
+							(e.currentTarget as HTMLElement).style.color = 'var(--text-muted)';
+							(e.currentTarget as HTMLElement).style.background = '';
+						}
+					}}
 					onclick={() => (dropdownopen = !dropdownopen)}
 					aria-label="User menu"
-				></button>
+				>
+					<span class="font-mono text-[13px]">{username}</span>
+				</button>
 
 				{#if dropdownopen}
 					<!-- backdrop -->
@@ -319,7 +330,7 @@
 			<span class="opacity-50">·</span>
 			<span>{data.diary.length.toLocaleString()} entries logged</span>
 			<span class="flex-1"></span>
-			<span class="opacity-80">a personal film almanac</span>
+			<span class="opacity-80">letterboxdstatstypeshit</span>
 		</footer>
 	</div>
 {/if}
