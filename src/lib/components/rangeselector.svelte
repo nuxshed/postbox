@@ -37,7 +37,7 @@
 		{#each PRESETS as p (p.kind)}
 			{@const active = value.kind === p.kind}
 			<button
-				class="font-mono text-[10.5px] px-[9px] py-[4px] rounded-[5px] transition-all whitespace-nowrap"
+				class="font-mono text-[10.5px] px-[9px] h-[28px] rounded-[5px] transition-all whitespace-nowrap flex items-center"
 				style={active
 					? 'color: var(--text); background: color-mix(in oklab, var(--accent) 16%, transparent); box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--accent) 32%, transparent);'
 					: 'color: var(--text-dim);'}

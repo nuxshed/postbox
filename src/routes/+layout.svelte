@@ -41,6 +41,11 @@
 			return filtereddata;
 		}
 	});
+	setContext('range', {
+		get kind() {
+			return range.kind;
+		}
+	});
 	setContext('ovdir', {
 		get dir() {
 			return dir;
@@ -81,9 +86,26 @@
 	const pathname = $derived($page.url.pathname);
 	const pagetitle = $derived(TITLES[pathname] ?? pathname.slice(1));
 	const isoverview = $derived(pathname === '/');
+	const isactivity = $derived(pathname === '/activity');
 	const ispipeline = $derived(pathname.startsWith('/pipeline'));
 	const isfilmdetail = $derived(pathname.startsWith('/films/') && pathname !== '/films');
 	const username = $derived(data?.profile?.name || data?.profile?.username || 'you');
+
+	const activityyears = $derived.by(() => {
+		if (!filtereddata) return [];
+		const ys = new Set<number>();
+		for (const e of filtereddata.diary)
+			ys.add(new Date((e.watcheddate || e.date) + 'T00:00:00').getFullYear());
+		return [...ys].sort((a, b) => a - b);
+	});
+	let activityyear = $state(0);
+	const curactivityyear = $derived(
+		activityyears.length ? (activityyear || activityyears[activityyears.length - 1]) : new Date().getFullYear()
+	);
+	setContext('activityyear', {
+		get year() { return curactivityyear; },
+		setyear(y: number) { activityyear = y; }
+	});
 </script>
 
 <svelte:head><link rel="icon" href={favicon} /></svelte:head>
@@ -220,7 +242,25 @@
 				</h1>
 
 				<div class="flex items-center gap-3">
-					<RangeSelector value={range} onchange={(v) => (range = v)} />
+					{#if isactivity}
+						<div
+							class="flex items-center gap-[4px] p-[3px] rounded-[7px] border border-[var(--border)]"
+							style="background: var(--bar-track);"
+						>
+							{#each activityyears as y (y)}
+								{@const active = y === curactivityyear}
+								<button
+									class="font-mono text-[10.5px] px-[9px] py-[4px] rounded-[5px] transition-all"
+									style={active
+										? 'color: var(--text); background: color-mix(in oklab, var(--accent-amber) 18%, transparent); box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--accent-amber) 35%, transparent);'
+										: 'color: var(--text-dim);'}
+									onclick={() => (activityyear = y)}
+								>{y}</button>
+							{/each}
+						</div>
+					{:else}
+						<RangeSelector value={range} onchange={(v) => (range = v)} />
+					{/if}
 
 					{#if isoverview}
 						<div

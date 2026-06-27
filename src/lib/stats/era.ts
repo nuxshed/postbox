@@ -2,7 +2,7 @@ import type { dataset, enrichedfilm } from '$lib/pipeline/types';
 
 export type erastats = {
 	decadedist: { decade: number; label: string; count: number; avg: number; liked: number }[];
-	releaseyears: { year: number; count: number; label: string; title: string }[];
+	releaseyears: { year: number; count: number; liked: number; avg: number; label: string; title: string }[];
 	seasonal: { month: string; count: number; avg: number; liked: number }[];
 	erahighlights: {
 		label: string;
@@ -43,17 +43,23 @@ export function computeera(data: dataset): erastats {
 		.filter((d) => d.count > 0);
 
 	// release year distribution
-	const yearmap = new Map<number, number>();
+	const yearmap = new Map<number, { count: number; liked: number; ratings: number[] }>();
 	for (const f of films) {
-		yearmap.set(f.year, (yearmap.get(f.year) ?? 0) + 1);
+		if (!yearmap.has(f.year)) yearmap.set(f.year, { count: 0, liked: 0, ratings: [] });
+		const e = yearmap.get(f.year)!;
+		e.count++;
+		if (f.liked) e.liked++;
+		if (f.rating !== null) e.ratings.push(f.rating);
 	}
 	const releaseyears = [...yearmap.entries()]
 		.sort((a, b) => a[0] - b[0])
-		.map(([year, count]) => ({
+		.map(([year, { count, liked, ratings }]) => ({
 			year,
 			count,
-			label: year % 10 === 0 ? "'" + String(year).slice(2) : '',
-			title: String(year) + ' · ' + count + ' film' + (count !== 1 ? 's' : '')
+			liked,
+			avg: ratings.length > 0 ? Math.round((ratings.reduce((a, b) => a + b, 0) / ratings.length) * 100) / 100 : 0,
+			label: '',
+			title: ''
 		}));
 
 	// seasonal patterns (by diary watch month)

@@ -9,7 +9,11 @@
 	import MetricToggle from '$lib/components/metrictoggle.svelte';
 
 	const dsctx = getContext<{ data: dataset | null }>('dataset');
-	const stats = $derived(dsctx.data ? computegenres(dsctx.data) : null);
+	const rangectx = getContext<{ kind: string }>('range');
+	const genreminthreshold = $derived(
+		rangectx.kind === '1mo' ? 1 : rangectx.kind === '6mo' ? 5 : 20
+	);
+	const stats = $derived(dsctx.data ? computegenres(dsctx.data, genreminthreshold) : null);
 
 	const hasratings = $derived(dsctx.data?.films.some((f) => f.rating !== null) ?? false);
 	const haslikes = $derived(dsctx.data?.films.some((f) => f.liked) ?? false);
@@ -145,7 +149,7 @@
 				{#snippet actions()}
 					<div class="flex items-center gap-2">
 						{#if ratedmetric === 'rating'}
-							<Infotip text="Only genres with at least 20 logged entries are included." />
+							<Infotip text="Only genres with at least {genreminthreshold} logged {genreminthreshold === 1 ? 'entry' : 'entries'} are included." />
 						{/if}
 						{#if ratedopts.length > 1}
 							<MetricToggle value={ratedmetric} onchange={(v) => (ratedmetric = v)} options={ratedopts} />

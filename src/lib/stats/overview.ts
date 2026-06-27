@@ -11,10 +11,15 @@ export type overstats = {
 	filmsthisyear: number;
 	avgruntime: number;
 	thisyear: number;
-	ratingdist: { star: number; count: number }[];
-	runtimebuckets: { label: string; count: number }[];
-	directors: { name: string; watched: number; avg: number; liked: number }[];
+	ratingdist: { star: number; count: number; liked: number }[];
+	runtimebuckets: { label: string; count: number; liked: number; avg: number }[];
+	directors: { name: string; watched: number; avg: number; liked: number; ratedfilms: number }[];
 	genres: { name: string; count: number; avg: number; liked: number }[];
+	totalliked: number;
+	avgratliked: number;
+	avgruntimeliked: number;
+	avgruntimefivestar: number;
+	fivestartotal: number;
 	hasratings: boolean;
 	haslikes: boolean;
 	insights: { k: string; v: string; sub: string; href?: string; subhref?: string }[];
@@ -38,26 +43,35 @@ export function computeoverview(data: dataset): overstats {
 	const thisyear = new Date().getFullYear();
 
 	// rating distribution
-	const ratingmap = new Map<number, number>(STARS.map((s) => [s, 0]));
+	const ratingmap = new Map<number, { count: number; liked: number }>(STARS.map((s) => [s, { count: 0, liked: 0 }]));
 	let ratingsum = 0,
 		ratingcount = 0;
 	for (const f of films) {
 		if (f.rating === null) continue;
 		const bucket = Math.round(f.rating * 2) / 2;
 		const key = STARS.find((s) => Math.abs(s - bucket) < 0.01) ?? bucket;
-		ratingmap.set(key, (ratingmap.get(key) ?? 0) + 1);
+		const e = ratingmap.get(key) ?? { count: 0, liked: 0 };
+		e.count++;
+		if (f.liked) e.liked++;
+		ratingmap.set(key, e);
 		ratingsum += f.rating;
 		ratingcount++;
 	}
-	const ratingdist = STARS.map((star) => ({ star, count: ratingmap.get(star) ?? 0 }));
+	const ratingdist = STARS.map((star) => ({ star, ...(ratingmap.get(star) ?? { count: 0, liked: 0 }) }));
 	const avgrating = ratingcount > 0 ? ratingsum / ratingcount : 0;
 
 	// runtime distribution
 	const runtimes = films.map((f) => f.tmdb?.runtime).filter((r): r is number => r != null && r > 0);
-	const runtimebuckets = RT_BUCKETS.map((b) => ({
-		label: b.label,
-		count: runtimes.filter((r) => r >= b.lo && r < b.hi).length
-	}));
+	const runtimebuckets = RT_BUCKETS.map((b) => {
+		const inbucket = films.filter((f) => f.tmdb?.runtime != null && f.tmdb.runtime >= b.lo && f.tmdb.runtime < b.hi);
+		const ratings = inbucket.map((f) => f.rating).filter((r): r is number => r != null);
+		return {
+			label: b.label,
+			count: inbucket.length,
+			liked: inbucket.filter((f) => f.liked).length,
+			avg: ratings.length > 0 ? Math.round((ratings.reduce((a, r) => a + r, 0) / ratings.length) * 100) / 100 : 0
+		};
+	});
 	const avgruntime =
 		runtimes.length > 0 ? Math.round(runtimes.reduce((a, b) => a + b, 0) / runtimes.length) : 0;
 
@@ -88,6 +102,7 @@ export function computeoverview(data: dataset): overstats {
 			name,
 			watched,
 			liked,
+			ratedfilms: ratings.length,
 			avg: ratings.length
 				? Math.round((ratings.reduce((a, b) => a + b, 0) / ratings.length) * 10) / 10
 				: 0
@@ -168,6 +183,17 @@ export function computeoverview(data: dataset): overstats {
 
 	const hasratings = films.some((f) => f.rating !== null);
 	const haslikes = films.some((f) => f.liked);
+	const totalliked = films.filter((f) => f.liked).length;
+
+	const likedratings = films.filter((f) => f.liked && f.rating !== null).map((f) => f.rating as number);
+	const avgratliked = likedratings.length > 0 ? Math.round((likedratings.reduce((a, b) => a + b, 0) / likedratings.length) * 100) / 100 : 0;
+
+	const fivestarfilms = films.filter((f) => f.rating === 5 && f.tmdb?.runtime);
+	const fivestartotal = fivestarfilms.length;
+	const avgruntimefivestar = fivestartotal > 0 ? Math.round(fivestarfilms.reduce((a, f) => a + f.tmdb!.runtime!, 0) / fivestartotal) : 0;
+
+	const likedruntimes = films.filter((f) => f.liked && f.tmdb?.runtime).map((f) => f.tmdb!.runtime as number);
+	const avgruntimeliked = likedruntimes.length > 0 ? Math.round(likedruntimes.reduce((a, b) => a + b, 0) / likedruntimes.length) : 0;
 
 	return {
 		totalfilms: films.length,
@@ -183,6 +209,11 @@ export function computeoverview(data: dataset): overstats {
 		runtimebuckets,
 		directors,
 		genres,
+		totalliked,
+		avgratliked,
+		avgruntimeliked,
+		avgruntimefivestar,
+		fivestartotal,
 		hasratings,
 		haslikes,
 		insights

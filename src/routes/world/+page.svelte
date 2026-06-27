@@ -127,7 +127,7 @@
 					rows={countryrows}
 					accent="var(--accent)"
 					showrank={true}
-					format={countryMetric === 'count' ? (v) => v.toLocaleString('en-US') : fmtrating}
+					format={countryMetric === 'rating' ? fmtrating : (v) => v.toLocaleString('en-US')}
 					renderval={countryMetric === 'rating' ? fmtrating : undefined}
 				/>
 				{#if sortedCountries.length > 10}
@@ -160,7 +160,7 @@
 					rows={langrows}
 					accent="var(--accent-blue)"
 					showrank={true}
-					format={langMetric === 'count' ? (v) => v.toLocaleString('en-US') : fmtrating}
+					format={langMetric === 'rating' ? fmtrating : (v) => v.toLocaleString('en-US')}
 					renderval={langMetric === 'rating' ? fmtrating : undefined}
 				/>
 				{#if sortedLangs.length > 10}

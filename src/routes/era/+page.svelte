@@ -21,6 +21,7 @@
 
 	let decademetric = $state('count');
 	let seasonmetric = $state('count');
+	let yearmetric = $state('count');
 
 	const hasratings = $derived(dsctx.data?.films.some((f) => f.rating !== null) ?? false);
 	const haslikes = $derived(dsctx.data?.films.some((f) => f.liked) ?? false);
@@ -37,12 +38,9 @@
 
 	$effect(() => {
 		if (toggleopts.length > 0) {
-			if (!toggleopts.some((o) => o.id === decademetric)) {
-				decademetric = toggleopts[0].id;
-			}
-			if (!toggleopts.some((o) => o.id === seasonmetric)) {
-				seasonmetric = toggleopts[0].id;
-			}
+			if (!toggleopts.some((o) => o.id === decademetric)) decademetric = toggleopts[0].id;
+			if (!toggleopts.some((o) => o.id === seasonmetric)) seasonmetric = toggleopts[0].id;
+			if (!toggleopts.some((o) => o.id === yearmetric)) yearmetric = toggleopts[0].id;
 		}
 	});
 
@@ -63,6 +61,23 @@
 				}))
 			: []
 	);
+
+	const yearrows = $derived.by(() => {
+		if (!stats) return [];
+		return stats.releaseyears.map((y) => {
+			const val = yearmetric === 'liked' ? y.liked : yearmetric === 'rating' ? y.avg : y.count;
+			const valstr = yearmetric === 'rating' ? y.avg.toFixed(2) + '★' : val.toLocaleString('en-US');
+			return { ...y, value: val, title: String(y.year) + ' · ' + valstr };
+		});
+	});
+
+	const decadeaxislabels = $derived.by(() => {
+		if (!stats) return [];
+		return stats.releaseyears
+			.map((y, i) => ({ year: y.year, i }))
+			.filter(({ year }) => year % 10 === 0)
+			.map(({ year, i }) => ({ label: "'" + String(year).slice(2) + 's', index: i }));
+	});
 
 	const seasonavgcount = $derived(
 		stats ? Math.round(stats.seasonal.reduce((a, s) => a + s.count, 0) / 12) : 0
@@ -98,14 +113,19 @@
 		<!-- release year + seasonal -->
 		<div class="grid gap-[18px]" style="grid-template-columns: 3fr 2fr;">
 			<Card title="Release year">
+				{#snippet actions()}
+					<MetricToggle value={yearmetric} onchange={(v) => (yearmetric = v)} options={toggleopts} />
+				{/snippet}
 				<div class="flex-1 flex flex-col justify-end">
 					<ColumnChart
-						data={stats.releaseyears}
+						data={yearrows}
 						accent="var(--accent-amber)"
 						height={160}
 						gap={2}
-						valuekey="count"
+						valuekey="value"
+						format={(v) => yearmetric === 'rating' ? v.toFixed(2) + '★' : v.toLocaleString('en-US')}
 						gethref={(d) => d.year ? `${base}/films?year=${d.year}` : undefined}
+						axislabels={decadeaxislabels}
 					/>
 				</div>
 			</Card>

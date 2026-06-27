@@ -9,11 +9,14 @@
 
 	const dsctx = getContext<{ data: dataset | null }>('dataset');
 	const dirctx = getContext<{ dir: string; setdir(v: string): void }>('ovdir');
+	const rangectx = getContext<{ kind: string }>('range');
 
 	const stats = $derived(dsctx.data ? computeoverview(dsctx.data) : null);
 
 	let dirmetric = $state('count');
 	let genremetric = $state('count');
+	let runtimemetric = $state('count');
+	let ratingmetric = $state('count');
 
 	const toggleopts = $derived.by(() => {
 		if (!stats) return [{ id: 'count', label: 'Watched' }];
@@ -27,22 +30,30 @@
 		return opts;
 	});
 
+	const ratingtoggleopts = $derived.by(() => {
+		const opts = [{ id: 'count', label: 'Watched' }];
+		if (stats?.haslikes) opts.push({ id: 'liked', label: 'Liked' });
+		return opts;
+	});
+
 	$effect(() => {
 		if (toggleopts.length > 0) {
-			if (!toggleopts.some((o) => o.id === dirmetric)) {
-				dirmetric = toggleopts[0].id;
-			}
-			if (!toggleopts.some((o) => o.id === genremetric)) {
-				genremetric = toggleopts[0].id;
-			}
+			if (!toggleopts.some((o) => o.id === dirmetric)) dirmetric = toggleopts[0].id;
+			if (!toggleopts.some((o) => o.id === genremetric)) genremetric = toggleopts[0].id;
+			if (!toggleopts.some((o) => o.id === runtimemetric)) runtimemetric = toggleopts[0].id;
 		}
+		if (!ratingtoggleopts.some((o) => o.id === ratingmetric)) ratingmetric = 'count';
 	});
+
+	const dirminthreshold = $derived(
+		(rangectx.kind === '6mo' || rangectx.kind === '1mo') ? 1 : 3
+	);
 
 	const dirrows = $derived.by(() => {
 		if (!stats) return [];
 		if (dirmetric === 'rating') {
 			return stats.directors
-				.filter((d) => d.avg > 0)
+				.filter((d) => d.ratedfilms >= dirminthreshold)
 				.sort((a, b) => b.avg - a.avg)
 				.slice(0, 8)
 				.map((d) => ({ label: d.name, value: d.avg, href: `${base}/films?director=${encodeURIComponent(d.name)}` }));
@@ -82,6 +93,43 @@
 
 	const ratinghref = (d: { label: string }) => `${base}/films?rating=${d.label}`;
 	const runtimehref = (d: { label: string }) => `${base}/films?runtimebucket=${encodeURIComponent(d.label)}`;
+
+	const runtimechartkey = $derived(runtimemetric === 'rating' ? 'avg' : runtimemetric === 'liked' ? 'liked' : 'count');
+	const runtimefmt = $derived(runtimemetric === 'rating' ? (v: number) => v.toFixed(2) + ' ★' : undefined);
+
+	const ratingstatnum = $derived(
+		stats
+			? ratingmetric === 'liked'
+				? stats.avgratliked.toFixed(2)
+				: stats.avgrating.toFixed(2)
+			: '—'
+	);
+	const ratingstatline = $derived(
+		stats
+			? ratingmetric === 'liked'
+				? `average rating across ${fmtnum(stats.totalliked)} liked films`
+				: `average rating across ${fmtnum(stats.totalfilms)} films`
+			: ''
+	);
+
+	const runtimestatnum = $derived(
+		stats
+			? runtimemetric === 'liked'
+				? stats.avgruntimeliked + ' min'
+				: runtimemetric === 'rating'
+					? stats.avgruntimefivestar + ' min'
+					: stats.avgruntime + ' min'
+			: '—'
+	);
+	const runtimestatline = $derived(
+		stats
+			? runtimemetric === 'liked'
+				? `avg runtime across ${fmtnum(stats.totalliked)} liked films`
+				: runtimemetric === 'rating'
+					? `avg runtime across ${fmtnum(stats.fivestartotal)} 5-star films`
+					: `typical runtime across all films`
+			: ''
+	);
 </script>
 
 {#if !stats}
@@ -180,31 +228,34 @@
 				class="flex flex-col rounded-[14px] border border-[var(--border)] p-5 px-[22px]"
 				style="background: var(--bg-card);"
 			>
-				<h3
-					class="font-display font-semibold text-[17px] tracking-[-0.01em] mb-4"
-					style="color: var(--text);"
-				>
-					Rating distribution
-				</h3>
+				<div class="flex items-center justify-between mb-4">
+					<h3
+						class="font-display font-semibold text-[17px] tracking-[-0.01em]"
+						style="color: var(--text);"
+					>
+						Rating distribution
+					</h3>
+					<MetricToggle value={ratingmetric} onchange={(v) => (ratingmetric = v)} options={ratingtoggleopts} />
+				</div>
 				<div class="flex-1 flex flex-col justify-end">
 					<ColumnChart
 						data={stats.ratingdist.map((r) => ({
 							label: r.star % 1 === 0 ? String(r.star) : r.star + '',
-							count: r.count
+							count: r.count,
+							liked: r.liked
 						}))}
 						accent="var(--accent-blue)"
 						height={120}
+						valuekey={ratingmetric}
 					/>
 					<div
 						class="flex items-baseline gap-[10px] mt-4 pt-[14px] border-t border-[var(--border)]"
 					>
 						<span
 							class="font-num font-bold text-[22px] tracking-[-0.02em]"
-							style="color: var(--accent-blue);">{stats.avgrating.toFixed(2)}</span
+							style="color: var(--accent-blue);">{ratingstatnum}</span
 						>
-						<span class="text-[12.5px]" style="color: var(--text-muted);"
-							>average rating across {fmtnum(stats.totalfilms)} films</span
-						>
+						<span class="text-[12.5px]" style="color: var(--text-muted);">{ratingstatline}</span>
 					</div>
 				</div>
 			</div>
@@ -212,24 +263,25 @@
 				class="flex flex-col rounded-[14px] border border-[var(--border)] p-5 px-[22px]"
 				style="background: var(--bg-card);"
 			>
-				<h3
-					class="font-display font-semibold text-[17px] tracking-[-0.01em] mb-4"
-					style="color: var(--text);"
-				>
-					Runtime preferences
-				</h3>
+				<div class="flex items-center justify-between mb-4">
+					<h3
+						class="font-display font-semibold text-[17px] tracking-[-0.01em]"
+						style="color: var(--text);"
+					>
+						Runtime preferences
+					</h3>
+					<MetricToggle value={runtimemetric} onchange={(v) => (runtimemetric = v)} options={toggleopts} />
+				</div>
 				<div class="flex-1 flex flex-col justify-end">
-					<ColumnChart data={stats.runtimebuckets} accent="var(--accent-amber)" height={120} gethref={runtimehref} />
+					<ColumnChart data={stats.runtimebuckets} accent="var(--accent-amber)" height={120} gethref={runtimehref} valuekey={runtimechartkey} format={runtimefmt} />
 					<div
 						class="flex items-baseline gap-[10px] mt-4 pt-[14px] border-t border-[var(--border)]"
 					>
 						<span
 							class="font-num font-bold text-[22px] tracking-[-0.02em]"
-							style="color: var(--accent-amber);">{stats.avgruntime} min</span
+							style="color: var(--accent-amber);">{runtimestatnum}</span
 						>
-						<span class="text-[12.5px]" style="color: var(--text-muted);"
-							>typical runtime across all films</span
-						>
+						<span class="text-[12.5px]" style="color: var(--text-muted);">{runtimestatline}</span>
 					</div>
 				</div>
 			</div>
@@ -366,30 +418,33 @@
 			class="col-span-2 rounded-[14px] border border-[var(--border)] p-5 px-[22px] flex flex-col"
 			style="background: var(--bg-card);"
 		>
-			<h3
-				class="font-display font-semibold text-[17px] tracking-[-0.01em] mb-4"
-				style="color: var(--text);"
-			>
-				Rating distribution
-			</h3>
+			<div class="flex items-center justify-between mb-4">
+				<h3
+					class="font-display font-semibold text-[17px] tracking-[-0.01em]"
+					style="color: var(--text);"
+				>
+					Rating distribution
+				</h3>
+				<MetricToggle value={ratingmetric} onchange={(v) => (ratingmetric = v)} options={ratingtoggleopts} />
+			</div>
 			<div class="flex-1 flex flex-col justify-end">
 				<ColumnChart
 					data={stats.ratingdist.map((r) => ({
 						label: r.star % 1 === 0 ? String(r.star) : r.star + '',
-						count: r.count
+						count: r.count,
+						liked: r.liked
 					}))}
 					accent="var(--accent-blue)"
 					height={120}
 					gethref={ratinghref}
+					valuekey={ratingmetric}
 				/>
 				<div class="flex items-baseline gap-[10px] mt-4 pt-[14px] border-t border-[var(--border)]">
 					<span
 						class="font-num font-bold text-[22px] tracking-[-0.02em]"
-						style="color: var(--accent-blue);">{stats.avgrating.toFixed(2)}</span
+						style="color: var(--accent-blue);">{ratingstatnum}</span
 					>
-					<span class="text-[12.5px]" style="color: var(--text-muted);"
-						>average rating across {fmtnum(stats.totalfilms)} films</span
-					>
+					<span class="text-[12.5px]" style="color: var(--text-muted);">{ratingstatline}</span>
 				</div>
 			</div>
 		</div>
@@ -398,22 +453,23 @@
 			class="col-span-2 rounded-[14px] border border-[var(--border)] p-5 px-[22px] flex flex-col"
 			style="background: var(--bg-card);"
 		>
-			<h3
-				class="font-display font-semibold text-[17px] tracking-[-0.01em] mb-4"
-				style="color: var(--text);"
-			>
-				Runtime preferences
-			</h3>
+			<div class="flex items-center justify-between mb-4">
+				<h3
+					class="font-display font-semibold text-[17px] tracking-[-0.01em]"
+					style="color: var(--text);"
+				>
+					Runtime preferences
+				</h3>
+				<MetricToggle value={runtimemetric} onchange={(v) => (runtimemetric = v)} options={toggleopts} />
+			</div>
 			<div class="flex-1 flex flex-col justify-end">
-				<ColumnChart data={stats.runtimebuckets} accent="var(--accent-amber)" height={120} gethref={runtimehref} />
+				<ColumnChart data={stats.runtimebuckets} accent="var(--accent-amber)" height={120} gethref={runtimehref} valuekey={runtimechartkey} format={runtimefmt} />
 				<div class="flex items-baseline gap-[10px] mt-4 pt-[14px] border-t border-[var(--border)]">
 					<span
 						class="font-num font-bold text-[22px] tracking-[-0.02em]"
-						style="color: var(--accent-amber);">{stats.avgruntime} min</span
+						style="color: var(--accent-amber);">{runtimestatnum}</span
 					>
-					<span class="text-[12.5px]" style="color: var(--text-muted);"
-						>typical runtime across all films</span
-					>
+					<span class="text-[12.5px]" style="color: var(--text-muted);">{runtimestatline}</span>
 				</div>
 			</div>
 		</div>
@@ -574,30 +630,33 @@
 	<div class="grid gap-7" style="grid-template-columns: 1fr 1px 1fr 1px 1fr;">
 		<!-- rating dist -->
 		<div class="min-w-0">
-			<h3
-				class="font-display font-semibold text-[16px] tracking-[-0.01em] mb-4"
-				style="color: var(--text);"
-			>
-				Rating distribution
-			</h3>
+			<div class="flex items-center justify-between mb-4">
+				<h3
+					class="font-display font-semibold text-[16px] tracking-[-0.01em]"
+					style="color: var(--text);"
+				>
+					Rating distribution
+				</h3>
+				<MetricToggle value={ratingmetric} onchange={(v) => (ratingmetric = v)} options={ratingtoggleopts} />
+			</div>
 			<div class="flex-1 flex flex-col justify-end">
 				<ColumnChart
 					data={stats.ratingdist.map((r) => ({
 						label: r.star % 1 === 0 ? String(r.star) : r.star + '',
-						count: r.count
+						count: r.count,
+						liked: r.liked
 					}))}
 					accent="var(--accent-blue)"
 					height={150}
 					gethref={ratinghref}
+					valuekey={ratingmetric}
 				/>
 				<div class="flex items-baseline gap-[10px] mt-4 pt-[14px] border-t border-[var(--border)]">
 					<span
 						class="font-num font-bold text-[22px] tracking-[-0.02em]"
-						style="color: var(--accent-blue);">{stats.avgrating.toFixed(2)}</span
+						style="color: var(--accent-blue);">{ratingstatnum}</span
 					>
-					<span class="text-[12.5px]" style="color: var(--text-muted);"
-						>average rating across {fmtnum(stats.totalfilms)} films</span
-					>
+					<span class="text-[12.5px]" style="color: var(--text-muted);">{ratingstatline}</span>
 				</div>
 			</div>
 		</div>
@@ -606,22 +665,23 @@
 
 		<!-- runtime -->
 		<div class="min-w-0">
-			<h3
-				class="font-display font-semibold text-[16px] tracking-[-0.01em] mb-4"
-				style="color: var(--text);"
-			>
-				Runtime preferences
-			</h3>
+			<div class="flex items-center justify-between mb-4">
+				<h3
+					class="font-display font-semibold text-[16px] tracking-[-0.01em]"
+					style="color: var(--text);"
+				>
+					Runtime preferences
+				</h3>
+				<MetricToggle value={runtimemetric} onchange={(v) => (runtimemetric = v)} options={toggleopts} />
+			</div>
 			<div class="flex-1 flex flex-col justify-end">
-				<ColumnChart data={stats.runtimebuckets} accent="var(--accent-amber)" height={150} gethref={runtimehref} />
+				<ColumnChart data={stats.runtimebuckets} accent="var(--accent-amber)" height={150} gethref={runtimehref} valuekey={runtimechartkey} format={runtimefmt} />
 				<div class="flex items-baseline gap-[10px] mt-4 pt-[14px] border-t border-[var(--border)]">
 					<span
 						class="font-num font-bold text-[22px] tracking-[-0.02em]"
-						style="color: var(--accent-amber);">{stats.avgruntime} min</span
+						style="color: var(--accent-amber);">{runtimestatnum}</span
 					>
-					<span class="text-[12.5px]" style="color: var(--text-muted);"
-						>typical runtime across all films</span
-					>
+					<span class="text-[12.5px]" style="color: var(--text-muted);">{runtimestatline}</span>
 				</div>
 			</div>
 		</div>

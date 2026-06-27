@@ -9,6 +9,7 @@
 	import IconStarFilled from '~icons/tabler/star-filled';
 
 	const dsctx = getContext<{ data: dataset | null }>('dataset');
+	const rangectx = getContext<{ kind: string }>('range');
 	const stats = $derived(dsctx.data ? computepeople(dsctx.data) : null);
 
 	const hasratings = $derived(dsctx.data?.films.some((f) => f.rating !== null) ?? false);
@@ -44,7 +45,9 @@
 	});
 
 	const allbycount = $derived(rows.slice().sort((a, b) => b.watched - a.watched));
-	const minthreshold = $derived(tab === 'Crew' ? 1 : 3);
+	const minthreshold = $derived(
+		tab === 'Crew' ? 1 : (rangectx.kind === '6mo' || rangectx.kind === '1mo') ? 1 : 3
+	);
 	const allbyrating = $derived(
 		rows
 			.slice()
@@ -53,9 +56,7 @@
 	);
 	const allbyliked = $derived(rows.slice().sort((a, b) => b.liked - a.liked));
 	const tiptext = $derived(
-		tab === 'Crew'
-			? 'Only crew with at least 1 rated film are included.'
-			: `Only ${tab.toLowerCase()} with at least 3 rated films are included.`
+		`Only ${tab.toLowerCase()} with at least ${minthreshold} rated ${minthreshold === 1 ? 'film' : 'films'} are included.`
 	);
 
 	const bycount = $derived(expanded ? allbycount : allbycount.slice(0, 10));

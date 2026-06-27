@@ -16,7 +16,7 @@ export type genrestats = {
 	totalgenres: number;
 };
 
-export function computegenres(data: dataset): genrestats {
+export function computegenres(data: dataset, minthreshold = 20): genrestats {
 	const { films } = data;
 
 	const genremap = new Map<string, { count: number; ratings: number[]; liked: number }>();
@@ -45,7 +45,7 @@ export function computegenres(data: dataset): genrestats {
 
 	const topwatched = genrecount.slice(0, 10);
 	const toprated = genrecount
-		.filter((g) => g.count >= 20)
+		.filter((g) => g.count >= minthreshold)
 		.sort((a, b) => b.avg - a.avg)
 		.slice(0, 10);
 	const topliked = genrecount.slice().sort((a, b) => b.liked - a.liked).slice(0, 10);

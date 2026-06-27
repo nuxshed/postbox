@@ -8,8 +8,10 @@
 	import ColumnChart from '$lib/components/columnchart.svelte';
 	import Heatmap from '$lib/components/heatmap.svelte';
 	import Card from '$lib/components/card.svelte';
+	import MetricToggle from '$lib/components/metrictoggle.svelte';
 
 	const dsctx = getContext<{ data: dataset | null }>('dataset');
+	const yearctrls = getContext<{ year: number; setyear: (y: number) => void }>('activityyear');
 	const stats = $derived(dsctx.data ? computeactivity(dsctx.data) : null);
 
 	const filmslugmap = $derived.by(() => {
@@ -19,31 +21,51 @@
 		return map;
 	});
 
-	let year = $state(0);
-	const curyear = $derived(
-		stats ? year || stats.years[stats.years.length - 1] : new Date().getFullYear()
-	);
+	const curyear = $derived(yearctrls.year);
 
-	const weeks = $derived(stats ? weeksofyear(stats.daycounts, curyear) : []);
+	const weeks = $derived(
+		stats ? weeksofyear(stats.daycounts, stats.daylikes, stats.dayratingsum, stats.dayratingcount, curyear) : []
+	);
 	const yeartotal = $derived(stats ? (stats.yeartotals[String(curyear)] ?? 0) : 0);
 	const activeweeks = $derived(weeks.filter((w) => w.count > 0).length);
 	const bestweek = $derived(
-		weeks.reduce((m, w) => (w.count > m.count ? w : m), { count: 0, label: '', title: '' })
+		weeks.reduce((m, w) => (w.count > m.count ? w : m), { count: 0, label: '', liked: 0, avg: 0, datestr: '', title: '' })
 	);
 	const perweekavg = $derived((yeartotal / 52).toFixed(1));
 	const daysthisyear = $derived(
 		stats ? Object.keys(stats.daycounts).filter((k) => k.slice(0, 4) === String(curyear)).length : 0
 	);
 
-	const yearrows = $derived(
-		stats
-			? stats.years.map((y) => ({
-					label: "'" + String(y).slice(2),
-					count: stats.yeartotals[String(y)] ?? 0,
-					title: String(y) + ' · ' + (stats.yeartotals[String(y)] ?? 0) + ' films'
-				}))
-			: []
-	);
+	const hasratings = $derived(dsctx.data?.films.some((f) => f.rating !== null) ?? false);
+	const haslikes = $derived(dsctx.data?.films.some((f) => f.liked) ?? false);
+	const activitytoggleopts = $derived.by(() => {
+		const opts = [{ id: 'count', label: 'Watched' }];
+		if (haslikes) opts.push({ id: 'liked', label: 'Liked' });
+		if (hasratings) opts.push({ id: 'rating', label: 'Rating' });
+		return opts;
+	});
+
+	let weekmetric = $state('count');
+	let yearmetric = $state('count');
+
+	const weekrows = $derived(weeks.map((w) => {
+		const val = weekmetric === 'liked' ? w.liked : weekmetric === 'rating' ? w.avg : w.count;
+		const valstr = weekmetric === 'rating' ? val.toFixed(2) + '★' : val.toLocaleString('en-US');
+		return { ...w, value: val, title: w.datestr ? `Week of ${w.datestr} · ${valstr}` : '' };
+	}));
+
+	const yearrows = $derived.by(() => {
+		if (!stats) return [];
+		return stats.years.map((y) => {
+			const val = yearmetric === 'liked'
+				? (stats.yearliked[String(y)] ?? 0)
+				: yearmetric === 'rating'
+					? (stats.yearratingavg[String(y)] ?? 0)
+					: (stats.yeartotals[String(y)] ?? 0);
+			const valstr = yearmetric === 'rating' ? val.toFixed(2) + '★' : val.toLocaleString('en-US');
+			return { label: "'" + String(y).slice(2), value: val, title: `${y} · ${valstr}` };
+		});
+	});
 
 	function fmtint(n: number) {
 		return n.toLocaleString('en-US');
@@ -123,28 +145,6 @@
 
 		<!-- heatmap card -->
 		<Card cap="{fmtint(yeartotal)} films logged across {activeweeks} weeks of {curyear}">
-			{#snippet actions()}
-				<div class="flex items-center gap-[6px]">
-					<span class="font-mono text-[10px]" style="color: var(--text-dim);">Year</span>
-					<div
-						class="flex items-center gap-[4px] p-[3px] rounded-[7px] border border-[var(--border)]"
-						style="background: var(--bar-track);"
-					>
-						{#each stats.years as y (y)}
-							{@const active = y === curyear}
-							<button
-								class="font-mono text-[10.5px] px-[9px] py-[4px] rounded-[5px] transition-all"
-								style={active
-									? 'color: var(--text); background: color-mix(in oklab, var(--accent-amber) 18%, transparent); box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--accent-amber) 35%, transparent);'
-									: 'color: var(--text-dim);'}
-								onclick={() => (year = y)}
-							>
-								{y}
-							</button>
-						{/each}
-					</div>
-				</div>
-			{/snippet}
 			<div class="mt-1">
 				<Heatmap
 					daycounts={stats.daycounts}
@@ -157,12 +157,16 @@
 
 		<!-- films per week -->
 		<Card title="Films per week · {curyear}" cap="peak {bestweek.count} in one week">
+			{#snippet actions()}
+				<MetricToggle value={weekmetric} onchange={(v) => (weekmetric = v)} options={activitytoggleopts} />
+			{/snippet}
 			<ColumnChart
-				data={weeks}
+				data={weekrows}
 				accent="var(--accent-amber)"
 				height={130}
 				gap={2}
-				valuekey="count"
+				valuekey="value"
+				format={(v) => weekmetric === 'rating' ? v.toFixed(2) : v.toLocaleString('en-US')}
 			/>
 		</Card>
 
@@ -204,7 +208,6 @@
 						rows={stats.mostrewatched.map((r) => ({
 							label: r.name,
 							value: r.times,
-							sub: r.director ?? undefined,
 							href: filmslugmap.get(r.name) ? `${base}/films/${filmslugmap.get(r.name)}` : undefined
 						}))}
 						accent="var(--accent-green)"
@@ -215,8 +218,18 @@
 			</Card>
 
 			<Card title="Films per year">
+				{#snippet actions()}
+					<MetricToggle value={yearmetric} onchange={(v) => (yearmetric = v)} options={activitytoggleopts} />
+				{/snippet}
 				<div class="flex-1 flex flex-col justify-end">
-					<ColumnChart data={yearrows} accent="var(--accent-blue)" height={200} showvalues={true} />
+					<ColumnChart
+						data={yearrows}
+						accent="var(--accent-blue)"
+						height={200}
+						valuekey="value"
+						showvalues={true}
+						format={(v) => yearmetric === 'rating' ? v.toFixed(2) : v.toLocaleString('en-US')}
+					/>
 				</div>
 			</Card>
 		</div>
