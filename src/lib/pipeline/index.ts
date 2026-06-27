@@ -1,8 +1,15 @@
 import { unzipSync } from 'fflate';
 import { parseall, parseprofile } from './parse';
-import { enrichall } from './tmdb';
-import { loadstored, savestored, clearstored } from './store';
-import type { dataset, enrichedfilm } from './types';
+import { enrichone } from './tmdb';
+import {
+	loadstored,
+	savestored,
+	clearstored,
+	getBulkFilmCache,
+	saveBulkFilmCache,
+	migrateLegacyCache
+} from './store';
+import type { dataset, enrichedfilm, film, tmdbdetails } from './types';
 
 export { clearstored };
 
@@ -26,11 +33,14 @@ function findlikes(files: Record<string, Uint8Array>): string | null {
 	return null;
 }
 
+const yieldToMain = () => new Promise((resolve) => setTimeout(resolve, 0));
+
 export async function loadfromzip(
 	file: File,
 	onprogress: (msg: string, done?: number, total?: number) => void
 ): Promise<dataset> {
 	onprogress('reading zip...');
+	await yieldToMain();
 	const buf = await file.arrayBuffer();
 	const files = unzipSync(new Uint8Array(buf));
 
@@ -42,27 +52,67 @@ export async function loadfromzip(
 	const profile = profilecsv ? parseprofile(profilecsv) : null;
 
 	onprogress('parsing csv files...');
+	await yieldToMain();
 	const { films, diary: diaryentries } = parseall(watched, ratings, diary, likes);
 	onprogress(`parsed ${films.length} films, ${diaryentries.length} diary entries`);
+	await yieldToMain();
 
-	const existing = loadstored();
-	const cache = new Map<string, enrichedfilm>();
-	if (existing) {
-		for (const ef of existing.films) {
-			if (ef.tmdb) cache.set(ef.uri, ef);
+	// Migrate old localStorage cache if it exists
+	await migrateLegacyCache();
+
+	// Fetch cached items from IndexedDB in bulk
+	const filmCache = await getBulkFilmCache(films.map((f) => f.uri));
+	const fromcache: enrichedfilm[] = [];
+	const toenrich: film[] = [];
+
+	for (const f of films) {
+		if (f.uri in filmCache) {
+			fromcache.push({ ...f, tmdb: filmCache[f.uri] });
+		} else {
+			toenrich.push(f);
 		}
 	}
 
-	const toenrich = films.filter((f) => !cache.has(f.uri));
-	const fromcache = films.filter((f) => cache.has(f.uri)).map((f) => ({ ...cache.get(f.uri)!, ...f }));
+	// Fast-path: if nothing to enrich and matches the last stored dataset, skip save and finish instantly
+	const existing = loadstored();
+	if (
+		toenrich.length === 0 &&
+		existing &&
+		existing.films.length === films.length &&
+		existing.diary.length === diaryentries.length &&
+		existing.profile?.username === profile?.username
+	) {
+		onprogress('done', films.length, films.length);
+		return existing;
+	}
 
 	onprogress('enriching with tmdb...', fromcache.length, films.length);
-	const fresh = await enrichall(toenrich, (done, total) => {
-		onprogress('enriching with tmdb...', fromcache.length + done, films.length);
-	});
+	await yieldToMain();
+
+	const batchsize = 5;
+	const fresh: enrichedfilm[] = [];
+
+	for (let i = 0; i < toenrich.length; i += batchsize) {
+		const batch = toenrich.slice(i, i + batchsize);
+		const enrichedBatch = await Promise.all(batch.map(enrichone));
+		fresh.push(...enrichedBatch);
+
+		// Progressively save cache in bulk
+		const batchToCache: Record<string, tmdbdetails | null> = {};
+		for (const ef of enrichedBatch) {
+			batchToCache[ef.uri] = ef.tmdb;
+		}
+		await saveBulkFilmCache(batchToCache);
+
+		onprogress('enriching with tmdb...', fromcache.length + fresh.length, films.length);
+		await yieldToMain();
+	}
 
 	const enriched = [...fromcache, ...fresh];
 	const data: dataset = { films: enriched, diary: diaryentries, profile, enrichedat: Date.now() };
+	
+	onprogress('saving data...');
+	await yieldToMain();
 	savestored(data);
 	onprogress('done', films.length, films.length);
 	return data;
@@ -78,6 +128,7 @@ export async function loadpipeline(
 	}
 
 	onprogress('parsing csv files...');
+	await yieldToMain();
 	const [watchedcsv, ratingscsv, diarycsv, profilecsv, likescsv] = await Promise.all([
 		fetch('/sample/watched.csv').then((r) => r.text()),
 		fetch('/sample/ratings.csv').then((r) => r.text()),
@@ -89,14 +140,66 @@ export async function loadpipeline(
 	const { films, diary } = parseall(watchedcsv, ratingscsv, diarycsv, likescsv);
 	const profile = parseprofile(profilecsv);
 	onprogress(`parsed ${films.length} films, ${diary.length} diary entries`);
+	await yieldToMain();
 
-	onprogress('enriching with tmdb...', 0, films.length);
-	const enriched = await enrichall(films, (done, total) => {
-		onprogress(`enriching...`, done, total);
-	});
+	// Migrate old localStorage cache if it exists
+	await migrateLegacyCache();
 
+	// Fetch cached items from IndexedDB in bulk
+	const filmCache = await getBulkFilmCache(films.map((f) => f.uri));
+	const fromcache: enrichedfilm[] = [];
+	const toenrich: film[] = [];
+
+	for (const f of films) {
+		if (f.uri in filmCache) {
+			fromcache.push({ ...f, tmdb: filmCache[f.uri] });
+		} else {
+			toenrich.push(f);
+		}
+	}
+
+	// Fast-path for pipeline run if already in cache and matching existing stored dataset
+	const existing = loadstored();
+	if (
+		toenrich.length === 0 &&
+		existing &&
+		existing.films.length === films.length &&
+		existing.diary.length === diary.length &&
+		existing.profile?.username === profile?.username
+	) {
+		onprogress('done', films.length, films.length);
+		return existing;
+	}
+
+	onprogress('enriching with tmdb...', fromcache.length, films.length);
+	await yieldToMain();
+
+	const batchsize = 5;
+	const fresh: enrichedfilm[] = [];
+
+	for (let i = 0; i < toenrich.length; i += batchsize) {
+		const batch = toenrich.slice(i, i + batchsize);
+		const enrichedBatch = await Promise.all(batch.map(enrichone));
+		fresh.push(...enrichedBatch);
+
+		// Progressively save cache in bulk
+		const batchToCache: Record<string, tmdbdetails | null> = {};
+		for (const ef of enrichedBatch) {
+			batchToCache[ef.uri] = ef.tmdb;
+		}
+		await saveBulkFilmCache(batchToCache);
+
+		onprogress('enriching with tmdb...', fromcache.length + fresh.length, films.length);
+		await yieldToMain();
+	}
+
+	const enriched = [...fromcache, ...fresh];
 	const data: dataset = { films: enriched, diary, profile, enrichedat: Date.now() };
+	
+	onprogress('saving data...');
+	await yieldToMain();
 	savestored(data);
 	onprogress('done', films.length, films.length);
 	return data;
 }
+

@@ -70,7 +70,7 @@ async function fetchjson(url: string): Promise<unknown> {
 	return res.json();
 }
 
-async function enrichone(f: film): Promise<enrichedfilm> {
+export async function enrichone(f: film): Promise<enrichedfilm> {
 	try {
 		const searchurl = `${BASE}/search/movie?api_key=${APIKEY}&query=${encodeURIComponent(f.name)}&year=${f.year}`;
 		const searchraw = await fetchjson(searchurl);
