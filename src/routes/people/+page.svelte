@@ -7,6 +7,7 @@
 	import Infotip from '$lib/components/infotip.svelte';
 	import MetricToggle from '$lib/components/metrictoggle.svelte';
 	import IconStarFilled from '~icons/tabler/star-filled';
+	import ListExpansion from '$lib/components/listexpansion.svelte';
 
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
@@ -25,7 +26,8 @@
 			? ($page.url.searchParams.get('tab') as Tab)
 			: 'Directors'
 	);
-	let expanded = $state(false);
+	let countLimit = $state(10);
+	let ratedLimit = $state(10);
 	let ratedmetric = $state('rating');
 
 	function settab(t: Tab) {
@@ -36,7 +38,8 @@
 
 	$effect(() => {
 		tab;
-		expanded = false;
+		countLimit = 10;
+		ratedLimit = 10;
 		if (dsctx.data && ratedopts.length > 0) {
 			ratedmetric = ratedopts.some((o) => o.id === 'rating') ? 'rating' : 'liked';
 		}
@@ -72,9 +75,9 @@
 		`Only ${tab.toLowerCase()} with at least ${minthreshold} rated ${minthreshold === 1 ? 'film' : 'films'} are included.`
 	);
 
-	const bycount = $derived(expanded ? allbycount : allbycount.slice(0, 10));
-	const byrating = $derived(expanded ? allbyrating : allbyrating.slice(0, 10));
-	const byliked = $derived(expanded ? allbyliked : allbyliked.slice(0, 10));
+	const bycount = $derived(allbycount.slice(0, countLimit));
+	const byrating = $derived(allbyrating.slice(0, ratedLimit));
+	const byliked = $derived(allbyliked.slice(0, ratedLimit));
 
 	const heroa = $derived(allbycount[0] ?? null);
 	const herob = $derived(ratedmetric === 'liked' ? allbyliked[0] ?? null : allbyrating[0] ?? null);
@@ -247,7 +250,7 @@
 		</div>
 
 		<!-- two lists -->
-		<div class="grid grid-cols-2 gap-[18px]">
+		<div class="grid grid-cols-2 gap-[18px] items-start">
 			<Card title="Most watched">
 				<div class="flex flex-col gap-[9px]">
 					{#each bycount as person, i (person.name + '|' + i)}
@@ -304,19 +307,7 @@
 						</div>
 					{/each}
 				</div>
-				{#if allbycount.length > 10}
-					<div class="mt-3 pt-3 border-t border-[var(--border)] flex justify-center">
-						<button
-							class="font-mono text-[11px] tracking-[0.06em] uppercase transition-colors"
-							style="color: var(--text-dim);"
-							onmouseenter={(e) => ((e.currentTarget as HTMLElement).style.color = 'var(--text)')}
-							onmouseleave={(e) =>
-								((e.currentTarget as HTMLElement).style.color = 'var(--text-dim)')}
-							onclick={() => (expanded = !expanded)}
-							>{expanded ? '↑ show less' : '↓ show all ' + allbycount.length}</button
-						>
-					</div>
-				{/if}
+				<ListExpansion total={allbycount.length} bind:limit={countLimit} />
 			</Card>
 
 			<Card title={ratedmetric === 'liked' ? 'Most liked' : 'Highest rated'}>
@@ -395,82 +386,10 @@
 					{/each}
 				</div>
 				{@const allactive = ratedmetric === 'liked' ? allbyliked : allbyrating}
-				{#if allactive.length > 10}
-					<div class="mt-3 pt-3 border-t border-[var(--border)] flex justify-center">
-						<button
-							class="font-mono text-[11px] tracking-[0.06em] uppercase transition-colors"
-							style="color: var(--text-dim);"
-							onmouseenter={(e) => ((e.currentTarget as HTMLElement).style.color = 'var(--text)')}
-							onmouseleave={(e) =>
-								((e.currentTarget as HTMLElement).style.color = 'var(--text-dim)')}
-							onclick={() => (expanded = !expanded)}
-							>{expanded ? '↑ show less' : '↓ show all ' + allactive.length}</button
-						>
-					</div>
-				{/if}
+				<ListExpansion total={allactive.length} bind:limit={ratedLimit} />
 			</Card>
 		</div>
 
-		<!-- crew full table (crew tab only) -->
-		{#if tab === 'Crew' && stats.crew.length > 0}
-			<Card title="All crew">
-				<div class="flex flex-col">
-					<div
-						class="grid gap-3 pb-[10px] mb-1 border-b border-[var(--border)]"
-						style="grid-template-columns: 1fr 160px 64px 64px;"
-					>
-						{#each ['Name', 'Role', 'Films', 'Avg'] as h (h)}
-							<span
-								class="font-mono text-[10.5px] tracking-[0.08em] uppercase"
-								style="color: var(--text-dim);">{h}</span
-							>
-						{/each}
-					</div>
-					{#each stats.crew.slice().sort((a, b) => b.watched - a.watched) as c (c.name + '|' + c.role)}
-						<div
-							class="grid gap-3 py-[9px] border-b border-[var(--border)] items-center"
-							style="grid-template-columns: 1fr 160px 64px 64px;"
-						>
-							<div class="flex items-center gap-2 min-w-0">
-								{#if c.photo}
-									<img
-										src={c.photo}
-										alt={c.name}
-										class="w-6 h-6 rounded-full object-cover shrink-0"
-										style="border: 1px solid var(--border);"
-									/>
-								{:else}
-									<div
-										class="w-6 h-6 rounded-full shrink-0 flex items-center justify-center font-mono text-[8px] font-bold"
-										style="background: color-mix(in oklab, var(--accent) 12%, var(--bg-1)); color: var(--accent);"
-									>
-										{initials(c.name)}
-									</div>
-								{/if}
-								<a
-									href={personhref(c.name)}
-									class="text-[13.5px] font-medium truncate transition-[color]"
-									style="color: var(--text);"
-									onmouseenter={(e) => ((e.currentTarget as HTMLElement).style.color = 'var(--accent)')}
-									onmouseleave={(e) => ((e.currentTarget as HTMLElement).style.color = 'var(--text)')}
-									>{c.name}</a
-								>
-							</div>
-							<span class="font-mono text-[11px]" style="color: var(--text-muted);">{c.role}</span>
-							<span class="font-mono text-[12px]" style="color: var(--text);">{c.watched}</span>
-							<span class="font-mono text-[12px]" style="color: var(--text-muted);"
-								>{c.avg.toFixed(1)}</span
-							>
-						</div>
-					{/each}
-				</div>
-			</Card>
-		{:else if tab === 'Crew' && stats.crew.length === 0}
-			<Card title="All crew">
-				<div class="py-8 text-center font-mono text-[12px]" style="color: var(--text-dim);">
-					Crew data available after re-enriching with TMDB
-				</div>
-			</Card>
-		{/if}
+
 	</div>
 {/if}

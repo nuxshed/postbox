@@ -8,6 +8,7 @@
 	import BarList from '$lib/components/barlist.svelte';
 	import WorldMap from '$lib/components/worldmap.svelte';
 	import Card from '$lib/components/card.svelte';
+	import ListExpansion from '$lib/components/listexpansion.svelte';
 
 	const dsctx = getContext<{ data: dataset | null }>('dataset');
 	const stats = $derived(dsctx.data ? computeworld(dsctx.data) : null);
@@ -16,8 +17,8 @@
 	let countryMetric = $state('count');
 	let langMetric = $state('count');
 
-	let showAllCountries = $state(false);
-	let showAllLanguages = $state(false);
+	let countryLimit = $state(10);
+	let langLimit = $state(10);
 
 	const hasratings = $derived(dsctx.data?.films.some((f) => f.rating !== null) ?? false);
 	const haslikes = $derived(dsctx.data?.films.some((f) => f.liked) ?? false);
@@ -57,7 +58,7 @@
 	);
 
 	const countryrows = $derived(
-		(showAllCountries ? sortedCountries : sortedCountries.slice(0, 10))
+		sortedCountries.slice(0, countryLimit)
 			.map((d) => ({
 				label: d.name,
 				value: countryMetric === 'count' ? d.count : countryMetric === 'liked' ? d.liked : d.avg,
@@ -76,7 +77,7 @@
 	);
 
 	const langrows = $derived(
-		(showAllLanguages ? sortedLangs : sortedLangs.slice(0, 10))
+		sortedLangs.slice(0, langLimit)
 			.map((d) => ({
 				label: d.name,
 				value: langMetric === 'count' ? d.count : langMetric === 'liked' ? d.liked : d.avg,
@@ -111,14 +112,14 @@
 		</Card>
 
 		<!-- country + language breakdown -->
-		<div class="grid grid-cols-2 gap-[18px]">
+		<div class="grid grid-cols-2 gap-[18px] items-start">
 			<Card title="By country">
 				{#snippet actions()}
 					<MetricToggle
 						value={countryMetric}
 						onchange={(v) => {
 							countryMetric = v;
-							showAllCountries = false;
+							countryLimit = 10;
 						}}
 						options={toggleopts}
 					/>
@@ -130,19 +131,7 @@
 					format={countryMetric === 'rating' ? fmtrating : (v) => v.toLocaleString('en-US')}
 					renderval={countryMetric === 'rating' ? fmtrating : undefined}
 				/>
-				{#if sortedCountries.length > 10}
-					<div class="mt-3 pt-3 border-t border-[var(--border)] flex justify-center">
-						<button
-							class="font-mono text-[11px] tracking-[0.06em] uppercase transition-colors"
-							style="color: var(--text-dim);"
-							onmouseenter={(e) => ((e.currentTarget as HTMLElement).style.color = 'var(--text)')}
-							onmouseleave={(e) =>
-								((e.currentTarget as HTMLElement).style.color = 'var(--text-dim)')}
-							onclick={() => (showAllCountries = !showAllCountries)}
-							>{showAllCountries ? '↑ show less' : '↓ show all ' + sortedCountries.length}</button
-						>
-					</div>
-				{/if}
+				<ListExpansion total={sortedCountries.length} bind:limit={countryLimit} />
 			</Card>
 
 			<Card title="By language">
@@ -151,7 +140,7 @@
 						value={langMetric}
 						onchange={(v) => {
 							langMetric = v;
-							showAllLanguages = false;
+							langLimit = 10;
 						}}
 						options={toggleopts}
 					/>
@@ -163,19 +152,7 @@
 					format={langMetric === 'rating' ? fmtrating : (v) => v.toLocaleString('en-US')}
 					renderval={langMetric === 'rating' ? fmtrating : undefined}
 				/>
-				{#if sortedLangs.length > 10}
-					<div class="mt-3 pt-3 border-t border-[var(--border)] flex justify-center">
-						<button
-							class="font-mono text-[11px] tracking-[0.06em] uppercase transition-colors"
-							style="color: var(--text-dim);"
-							onmouseenter={(e) => ((e.currentTarget as HTMLElement).style.color = 'var(--text)')}
-							onmouseleave={(e) =>
-								((e.currentTarget as HTMLElement).style.color = 'var(--text-dim)')}
-							onclick={() => (showAllLanguages = !showAllLanguages)}
-							>{showAllLanguages ? '↑ show less' : '↓ show all ' + sortedLangs.length}</button
-						>
-					</div>
-				{/if}
+				<ListExpansion total={sortedLangs.length} bind:limit={langLimit} />
 			</Card>
 		</div>
 	</div>

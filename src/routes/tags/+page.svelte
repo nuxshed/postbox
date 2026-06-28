@@ -7,6 +7,7 @@
 	import Card from '$lib/components/card.svelte';
 	import MetricToggle from '$lib/components/metrictoggle.svelte';
 	import IconStarFilled from '~icons/tabler/star-filled';
+	import ListExpansion from '$lib/components/listexpansion.svelte';
 
 	const dsctx = getContext<{ data: dataset | null }>('dataset');
 	const stats = $derived(dsctx.data ? computetags(dsctx.data) : null);
@@ -14,7 +15,7 @@
 	const hasratings = $derived(dsctx.data?.films.some((f) => f.rating !== null) ?? false);
 	const haslikes = $derived(dsctx.data?.films.some((f) => f.liked) ?? false);
 
-	let expanded = $state(false);
+	let limit = $state(10);
 	let ratedmetric = $state('rating');
 	$effect(() => {
 		if (dsctx.data && ratedopts.length > 0) {
@@ -38,7 +39,7 @@
 
 	const countrows = $derived(
 		stats
-			? (expanded ? stats.bycount : stats.bycount.slice(0, 10)).map((t) => ({
+			? stats.bycount.slice(0, limit).map((t) => ({
 					label: '#' + t.name,
 					value: t.count,
 					href: `${base}/films?tag=${encodeURIComponent(t.name)}`
@@ -47,7 +48,7 @@
 	);
 	const ratingrows = $derived(
 		stats
-			? (expanded ? stats.byrating : stats.byrating.slice(0, 10)).map((t) => ({
+			? stats.byrating.slice(0, limit).map((t) => ({
 					label: '#' + t.name,
 					value: t.avg,
 					href: `${base}/films?tag=${encodeURIComponent(t.name)}`
@@ -56,7 +57,7 @@
 	);
 	const likedrows = $derived(
 		stats
-			? (expanded ? stats.byliked : stats.byliked.slice(0, 10)).map((t) => ({
+			? stats.byliked.slice(0, limit).map((t) => ({
 					label: '#' + t.name,
 					value: t.liked,
 					href: `${base}/films?tag=${encodeURIComponent(t.name)}`
@@ -143,18 +144,8 @@
 		<div class="grid grid-cols-2 gap-[18px]">
 			<Card title="By film count">
 				<BarList rows={countrows} accent="var(--accent)" showrank={true} />
-				{#if stats && stats.bycount.length > 10}
-					<div class="mt-3 pt-3 flex justify-center">
-						<button
-							class="font-mono text-[11px] tracking-[0.06em] uppercase transition-colors"
-							style="color: var(--text-dim);"
-							onmouseenter={(e) => ((e.currentTarget as HTMLElement).style.color = 'var(--text)')}
-							onmouseleave={(e) =>
-								((e.currentTarget as HTMLElement).style.color = 'var(--text-dim)')}
-							onclick={() => (expanded = !expanded)}
-							>{expanded ? '↑ show less' : '↓ show all ' + stats.bycount.length}</button
-						>
-					</div>
+				{#if stats}
+					<ListExpansion total={stats.bycount.length} bind:limit />
 				{/if}
 			</Card>
 			<Card title={ratedmetric === 'liked' ? 'Most liked' : 'By avg rating'}>
@@ -169,19 +160,7 @@
 					showrank={true}
 					format={ratedmetric === 'liked' ? (v) => v.toLocaleString('en-US') : (v) => v.toFixed(1) + '★'}
 				/>
-				{#if activelist.length > 10}
-					<div class="mt-3 pt-3 flex justify-center">
-						<button
-							class="font-mono text-[11px] tracking-[0.06em] uppercase transition-colors"
-							style="color: var(--text-dim);"
-							onmouseenter={(e) => ((e.currentTarget as HTMLElement).style.color = 'var(--text)')}
-							onmouseleave={(e) =>
-								((e.currentTarget as HTMLElement).style.color = 'var(--text-dim)')}
-							onclick={() => (expanded = !expanded)}
-							>{expanded ? '↑ show less' : '↓ show all ' + activelist.length}</button
-						>
-					</div>
-				{/if}
+				<ListExpansion total={activelist.length} bind:limit />
 			</Card>
 		</div>
 
