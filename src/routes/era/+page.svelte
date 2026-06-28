@@ -2,26 +2,21 @@
 	import { getContext } from 'svelte';
 	import type { dataset } from '$lib/pipeline/types';
 	import { computeera } from '$lib/stats/era';
-	import { filmslug } from '$lib/utils';
+	import { filmslug, tmdbposter } from '$lib/utils';
 	import { base } from '$app/paths';
 	import MetricToggle from '$lib/components/metrictoggle.svelte';
 	import ColumnChart from '$lib/components/columnchart.svelte';
 	import Card from '$lib/components/card.svelte';
 	import IconStarFilled from '~icons/tabler/star-filled';
+	import Infotip from '$lib/components/infotip.svelte';
 
 	const dsctx = getContext<{ data: dataset | null }>('dataset');
 	const stats = $derived(dsctx.data ? computeera(dsctx.data) : null);
 
-	const filmslugmap = $derived.by(() => {
-		const map = new Map<string, string>();
-		if (!dsctx.data) return map;
-		for (const f of dsctx.data.films) map.set(f.name, filmslug(f.uri));
-		return map;
-	});
-
 	let decademetric = $state('count');
 	let seasonmetric = $state('count');
 	let yearmetric = $state('count');
+	let hoveredDecade = $state<string | null>(null);
 
 	const hasratings = $derived(dsctx.data?.films.some((f) => f.rating !== null) ?? false);
 	const haslikes = $derived(dsctx.data?.films.some((f) => f.liked) ?? false);
@@ -168,76 +163,88 @@
 		</div>
 
 		<!-- era highlights -->
-		<Card title="Era highlights" cap="highest-rated film from each decade">
+		<Card title="Era highlights" cap="your favourite film from each decade">
+			{#snippet actions()}
+				<Infotip text="<strong style='color: var(--text); font-weight: bold; display: block; margin-bottom: 4px;'>Selection priority</strong>Films are ranked by highest rating. Ties are broken by favourites, then rewatch count, and finally recency." />
+			{/snippet}
 			<div
 				class="grid gap-[14px]"
-				style="grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));"
+				style="grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));"
 			>
 				{#each stats.erahighlights as era (era.label)}
 					{#if era.count > 0 || era.top}
 						<div
-							class="flex flex-col p-4 rounded-[10px] border border-[var(--border)]"
-							style="background: var(--bg-1);"
+							class="flex flex-col p-3.5 rounded-[10px] border border-[var(--border)] gap-2.5 transition-colors duration-200"
+							style="background: {hoveredDecade === era.label ? 'color-mix(in oklab, var(--text) 4%, var(--bg-1))' : 'var(--bg-1)'};"
 						>
-							<div
-								class="font-mono text-[10px] tracking-[0.12em] uppercase"
-								style="color: var(--text-dim);"
-							>
-								{era.label}
-							</div>
-							<div class="mt-[6px]">
+							<div class="flex items-baseline justify-between">
 								<span
-									class="font-num font-bold text-[26px] leading-none tracking-[-0.02em]"
-									style="color: var(--text);"
+									class="font-mono text-[10px] tracking-[0.12em] uppercase"
+									style="color: var(--text-dim);"
 								>
-									{era.count.toLocaleString()}
+									{era.label}
 								</span>
-								<span class="text-[12px] ml-1" style="color: var(--text-dim);">films</span>
+								<span class="font-num text-[11px]" style="color: var(--text-muted);">
+									{era.count.toLocaleString()} film{era.count === 1 ? '' : 's'}
+								</span>
 							</div>
-							<div class="h-px my-[10px]" style="background: var(--border);"></div>
+
 							{#if era.top}
-								{@const fs = filmslugmap.get(era.top.name)}
-								{#if fs}
-									<a
-										href="{base}/films/{fs}"
-										class="text-[12.5px] font-medium leading-[1.3] truncate transition-[color]"
-								onmouseenter={(e) => ((e.currentTarget as HTMLElement).style.color = 'var(--accent)')}
-								onmouseleave={(e) => ((e.currentTarget as HTMLElement).style.color = 'var(--text)')}
-										style="color: var(--text);"
-										title={era.top.name}
-									>
-										{era.top.name}
-									</a>
-								{:else}
-									<div
-										class="text-[12.5px] font-medium leading-[1.3] truncate"
-										style="color: var(--text);"
-										title={era.top.name}
-									>
-										{era.top.name}
-									</div>
-								{/if}
-								{#if era.top.director}
-									<a
-										href="{base}/films?director={encodeURIComponent(era.top.director)}"
-										class="text-[11px] mt-[3px] truncate transition-[color] block"
-										style="color: var(--text-dim);"
-										title={era.top.director}
-										onmouseenter={(e) => ((e.currentTarget as HTMLElement).style.color = 'var(--accent)')}
-										onmouseleave={(e) => ((e.currentTarget as HTMLElement).style.color = 'var(--text-dim)')}
-									>
-										{era.top.director}
-									</a>
-								{/if}
-								<div
-									class="font-mono text-[11px] mt-[6px] font-bold flex items-center gap-0.5"
-									style="color: var(--accent-amber);"
+								{@const fs = filmslug(era.top.uri)}
+								{@const poster = tmdbposter(era.top.poster)}
+								<a
+									href="{base}/films/{fs}"
+									class="group flex flex-col gap-2"
+									onmouseenter={() => (hoveredDecade = era.label)}
+									onmouseleave={() => (hoveredDecade = null)}
 								>
-									{era.top.rating.toFixed(1)}
-									<IconStarFilled width="11" height="11" />
-								</div>
+									<div
+										class="relative overflow-hidden rounded-[8px] border border-[var(--border)] flex flex-col"
+										style="aspect-ratio: 2/3; background: var(--bg-card);"
+									>
+										{#if poster}
+											<img
+												src={poster}
+												alt={era.top.name}
+												class="w-full h-full object-cover"
+												loading="lazy"
+											/>
+										{:else}
+											<div class="flex-1 flex items-end p-3">
+												<span
+													class="font-display font-semibold text-[12px] leading-tight"
+													style="color: var(--text-muted);"
+												>
+													{era.top.name}
+												</span>
+											</div>
+										{/if}
+									</div>
+									<div>
+										<div
+											class="text-[12px] font-medium leading-tight truncate group-hover:text-[var(--accent)] transition-colors"
+											title={era.top.name}
+										>
+											{era.top.name}
+										</div>
+										{#if era.top.director}
+											<div
+												class="text-[11px] mt-0.5 truncate"
+												style="color: var(--text-dim);"
+												title={era.top.director}
+											>
+												by {era.top.director}
+											</div>
+										{/if}
+									</div>
+								</a>
 							{:else}
-								<div class="text-[12px]" style="color: var(--text-dim);">—</div>
+								<div
+									class="flex-1 flex items-center justify-center rounded-[8px] border border-dashed border-[var(--border)]"
+									style="aspect-ratio: 2/3; background: var(--bg-card);"
+								>
+									<span class="font-mono text-[11px]" style="color: var(--text-dim);">—</span>
+								</div>
 							{/if}
 						</div>
 					{/if}

@@ -8,7 +8,13 @@ export type erastats = {
 		label: string;
 		count: number;
 		avg: string;
-		top: { name: string; director: string | null; rating: number } | null;
+		top: {
+			name: string;
+			director: string | null;
+			rating: number | null;
+			poster: string | null;
+			uri: string;
+		} | null;
 	}[];
 };
 
@@ -75,6 +81,38 @@ export function computeera(data: dataset): erastats {
 		return { month, count: entries.length, avg: Math.round(avg * 100) / 100, liked };
 	});
 
+	const diarycounts = new Map<string, { count: number; hasfirst: boolean }>();
+	const maxDateMap = new Map<string, string>();
+
+	for (const e of diary) {
+		const k = `${e.name}|${e.year}`;
+		if (!diarycounts.has(k)) diarycounts.set(k, { count: 0, hasfirst: false });
+		const entry = diarycounts.get(k)!;
+		entry.count++;
+		if (!e.rewatch) entry.hasfirst = true;
+
+		const dateVal = e.watcheddate || e.date;
+		if (dateVal) {
+			const prevMax = maxDateMap.get(k) ?? '';
+			if (dateVal > prevMax) {
+				maxDateMap.set(k, dateVal);
+			}
+		}
+	}
+
+	const getRewatchTimes = (k: string) => {
+		const entry = diarycounts.get(k);
+		if (!entry) return 1;
+		return entry.hasfirst ? entry.count : entry.count + 1;
+	};
+
+	const getLatestWatchDate = (f: enrichedfilm) => {
+		const k = `${f.name}|${f.year}`;
+		return maxDateMap.get(k) || f.lastwatched || f.firstwatched || '';
+	};
+
+	const favSet = new Set(data.profile?.favoriteFilms ?? []);
+
 	// era highlights: top-rated film per key decade
 	const erahighlights = KEY_DECADES.map((decade) => {
 		const label = decade + 's';
@@ -84,16 +122,44 @@ export function computeera(data: dataset): erastats {
 			dd && dd.ratings.length > 0
 				? (dd.ratings.reduce((a, b) => a + b, 0) / dd.ratings.length).toFixed(1)
 				: '—';
-		const candidates = films
-			.filter((f) => Math.floor(f.year / 10) * 10 === decade && f.rating !== null)
-			.sort((a, b) => b.rating! - a.rating!);
+		
+		const candidates = films.filter((f) => Math.floor(f.year / 10) * 10 === decade);
+		
+		candidates.sort((a, b) => {
+			// 1. Highest rated
+			const rA = a.rating ?? 0;
+			const rB = b.rating ?? 0;
+			if (rB !== rA) return rB - rA;
+
+			// 2. Check if in favourites
+			const favA = favSet.has(a.uri) ? 1 : 0;
+			const favB = favSet.has(b.uri) ? 1 : 0;
+			if (favB !== favA) return favB - favA;
+
+			// 3. Most rewatched
+			const rwA = getRewatchTimes(`${a.name}|${a.year}`);
+			const rwB = getRewatchTimes(`${b.name}|${b.year}`);
+			if (rwB !== rwA) return rwB - rwA;
+
+			// 4. Most recently watched
+			const dateA = getLatestWatchDate(a);
+			const dateB = getLatestWatchDate(b);
+			return dateB.localeCompare(dateA);
+		});
+
 		const top = candidates[0] ?? null;
 		return {
 			label,
 			count,
 			avg,
 			top: top
-				? { name: top.name, director: top.tmdb?.director ?? null, rating: top.rating! }
+				? {
+						name: top.name,
+						director: top.tmdb?.director ?? null,
+						rating: top.rating,
+						poster: top.tmdb?.poster ?? null,
+						uri: top.uri
+					}
 				: null
 		};
 	});

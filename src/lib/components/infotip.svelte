@@ -24,14 +24,10 @@
 	{#if show}
 		<div
 			class="absolute right-0 top-[calc(100%+7px)] z-50 rounded-[8px] border border-[var(--border-2)] px-[11px] py-[8px] text-[12px] leading-[1.45] pointer-events-none"
-			style="background: var(--bg-card); color: var(--text-muted); min-width: 180px; max-width: 240px; box-shadow: 0 6px 20px rgba(0,0,0,0.4); white-space: normal;"
-		>
-			<!-- arrow -->
-			<div
+			style="background: var(--bg-card); color: var(--text-muted); min-width: 180px; max-width: 240px; box-shadow: 0 6px 20px rgba(0,0,0,0.4); white-space: normal; font-family: system-ui, -apple-system, sans-serif;"
+		><div
 				class="absolute right-[5px] top-[-5px] w-[9px] h-[9px] rotate-45 border-l border-t border-[var(--border-2)]"
 				style="background: var(--bg-card);"
-			></div>
-			{text}
-		</div>
+			></div>{@html text}</div>
 	{/if}
 </div>

@@ -9,6 +9,7 @@
 	import Heatmap from '$lib/components/heatmap.svelte';
 	import Card from '$lib/components/card.svelte';
 	import MetricToggle from '$lib/components/metrictoggle.svelte';
+	import Infotip from '$lib/components/infotip.svelte';
 
 	const dsctx = getContext<{ data: dataset | null }>('dataset');
 	const yearctrls = getContext<{ year: number; setyear: (y: number) => void }>('activityyear');
@@ -173,6 +174,9 @@
 		<!-- rewatch + per-year -->
 		<div class="grid grid-cols-2 gap-[18px]">
 			<Card title="Rewatch statistics">
+				{#snippet actions()}
+					<Infotip text="<strong style='color: var(--text); font-weight: bold; display: block; margin-bottom: 4px;'>Selection priority</strong>Films are ranked by watch count. Ties are broken by rating, then likes, favourites, and finally recency." />
+				{/snippet}
 				<div class="flex gap-[32px] mb-5">
 					<div>
 						<div
