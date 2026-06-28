@@ -53,9 +53,12 @@ export function parseprofile(csv: string): profile | null {
 	const rows = parsecsv(csv);
 	const row = rows[0];
 	if (!row) return null;
+	const favsStr = row['Favorite Films'] ?? '';
+	const favoriteFilms = favsStr ? favsStr.split(',').map((s) => s.trim()).filter(Boolean) : [];
 	return {
 		username: row['Username'] ?? '',
-		name: row['Given Name'] || row['Username'] || ''
+		name: row['Given Name'] || row['Username'] || '',
+		favoriteFilms
 	};
 }
 

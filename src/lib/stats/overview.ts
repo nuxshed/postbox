@@ -1,5 +1,5 @@
 import type { dataset } from '$lib/pipeline/types';
-import { filmslug } from '$lib/utils';
+import { filmslug, TMDB_LANG } from '$lib/utils';
 
 export type overstats = {
 	totalfilms: number;
@@ -132,37 +132,170 @@ export function computeoverview(data: dataset): overstats {
 		.sort((a, b) => b.count - a.count);
 
 	// insights
+	const actormap = new Map<string, number>();
+	for (const f of films) {
+		if (!f.tmdb?.cast) continue;
+		for (const actor of f.tmdb.cast) {
+			actormap.set(actor, (actormap.get(actor) ?? 0) + 1);
+		}
+	}
+	const topactor = [...actormap.entries()].sort((a, b) => b[1] - a[1])[0];
+
 	const decademap = new Map<string, number>();
 	for (const f of films) {
-		const decade = Math.floor(f.year / 10) * 10 + 's';
-		decademap.set(decade, (decademap.get(decade) ?? 0) + 1);
+		if (f.liked) {
+			const decade = Math.floor(f.year / 10) * 10 + 's';
+			decademap.set(decade, (decademap.get(decade) ?? 0) + 1);
+		}
 	}
-	const topdecade = [...decademap.entries()].sort((a, b) => b[1] - a[1])[0];
+	let topdecade = [...decademap.entries()].sort((a, b) => b[1] - a[1] || parseInt(b[0]) - parseInt(a[0]))[0];
+	let isDecadeLiked = true;
+	if (!topdecade) {
+		isDecadeLiked = false;
+		const fallbackMap = new Map<string, number>();
+		for (const f of films) {
+			const decade = Math.floor(f.year / 10) * 10 + 's';
+			fallbackMap.set(decade, (fallbackMap.get(decade) ?? 0) + 1);
+		}
+		topdecade = [...fallbackMap.entries()].sort((a, b) => b[1] - a[1] || parseInt(b[0]) - parseInt(a[0]))[0];
+	}
 
 	const withruntime = films.filter((f) => f.tmdb?.runtime);
 	const longestfilm = withruntime.sort((a, b) => b.tmdb!.runtime! - a.tmdb!.runtime!)[0];
 
-	const noneng = films.filter((f) => f.tmdb?.language && f.tmdb.language !== 'en').length;
-	const subtitledpct = films.length > 0 ? Math.round((noneng / films.length) * 100) : 0;
+	const uniquesLangs = new Set<string>();
+	for (const f of films) {
+		const rawCode = f.tmdb?.language ? f.tmdb.language.toLowerCase() : null;
+		const lang = rawCode ? (TMDB_LANG[rawCode] ?? null) : null;
+		if (lang) {
+			uniquesLangs.add(lang);
+		}
+	}
+	const numLanguages = uniquesLangs.size;
 
-	const pre1970 = films.filter((f) => f.year < 1970).length;
-	const pre1970pct = films.length > 0 ? Math.round((pre1970 / films.length) * 100) : 0;
+	const dateStrings = Array.from(new Set(diary.map((d) => d.watcheddate || d.date)))
+		.filter(Boolean)
+		.sort();
 
-	const liked = films.filter((f) => f.rating !== null && f.rating >= 4).length;
-	const likedpct = films.length > 0 ? Math.round((liked / films.length) * 100) : 0;
+	let longestStreak = 0;
+	let currentStreak = 0;
+	let prevTime: number | null = null;
 
-	const rewatchpct = totalentries > 0 ? Math.round((rewatchcount / totalentries) * 100) : 0;
+	for (const dstr of dateStrings) {
+		const parts = dstr.split('-');
+		if (parts.length !== 3) continue;
+		const year = parseInt(parts[0], 10);
+		const month = parseInt(parts[1], 10) - 1;
+		const day = parseInt(parts[2], 10);
+		const time = Date.UTC(year, month, day);
 
-	const topdir = directors[0];
+		if (prevTime === null) {
+			currentStreak = 1;
+		} else {
+			const diffDays = Math.round((time - prevTime) / 86400000);
+			if (diffDays === 1) {
+				currentStreak++;
+			} else if (diffDays > 1) {
+				if (currentStreak > longestStreak) {
+					longestStreak = currentStreak;
+				}
+				currentStreak = 1;
+			}
+		}
+		prevTime = time;
+	}
+	if (currentStreak > longestStreak) {
+		longestStreak = currentStreak;
+	}
+
+	const likedYearMap = new Map<number, number>();
+	for (const f of films) {
+		if (f.liked) {
+			likedYearMap.set(f.year, (likedYearMap.get(f.year) ?? 0) + 1);
+		}
+	}
+	let topYear = [...likedYearMap.entries()].sort((a, b) => b[1] - a[1] || b[0] - a[0])[0];
+	let isYearLiked = true;
+	if (!topYear) {
+		isYearLiked = false;
+		const fallbackMap = new Map<number, number>();
+		for (const f of films) {
+			fallbackMap.set(f.year, (fallbackMap.get(f.year) ?? 0) + 1);
+		}
+		topYear = [...fallbackMap.entries()].sort((a, b) => b[1] - a[1] || b[0] - a[0])[0];
+	}
+
+	const filmbykey = new Map(films.map((f) => [`${f.name}|${f.year}`, f]));
+	const diarycounts = new Map<string, { count: number; hasfirst: boolean }>();
+	const maxDateMap = new Map<string, string>();
+
+	for (const e of diary) {
+		const k = `${e.name}|${e.year}`;
+		if (!diarycounts.has(k)) diarycounts.set(k, { count: 0, hasfirst: false });
+		const entry = diarycounts.get(k)!;
+		entry.count++;
+		if (!e.rewatch) entry.hasfirst = true;
+
+		const dateVal = e.watcheddate || e.date;
+		if (dateVal) {
+			const prevMax = maxDateMap.get(k) ?? '';
+			if (dateVal > prevMax) {
+				maxDateMap.set(k, dateVal);
+			}
+		}
+	}
+
+	const favSet = new Set(data.profile?.favoriteFilms ?? []);
+
+	const rewatchedCandidates = [...diarycounts.entries()]
+		.map(([k, { count, hasfirst }]) => ({ k, times: hasfirst ? count : count + 1 }))
+		.filter(({ times }) => times > 1)
+		.sort((a, b) => {
+			if (b.times !== a.times) return b.times - a.times;
+
+			const filmA = filmbykey.get(a.k);
+			const filmB = filmbykey.get(b.k);
+
+			const ratingA = filmA?.rating ?? 0;
+			const ratingB = filmB?.rating ?? 0;
+			if (ratingB !== ratingA) return ratingB - ratingA;
+
+			const likedA = filmA?.liked ? 1 : 0;
+			const likedB = filmB?.liked ? 1 : 0;
+			if (likedB !== likedA) return likedB - likedA;
+
+			const favA = (filmA && favSet.has(filmA.uri)) ? 1 : 0;
+			const favB = (filmB && favSet.has(filmB.uri)) ? 1 : 0;
+			if (favB !== favA) return favB - favA;
+
+			const latestA = maxDateMap.get(a.k) ?? '';
+			const latestB = maxDateMap.get(b.k) ?? '';
+			return latestB.localeCompare(latestA);
+		});
+
+	const topRewatched = rewatchedCandidates[0] ?? null;
+	const topRewatchedFilm = topRewatched ? filmbykey.get(topRewatched.k) : null;
 
 	const insights: overstats['insights'] = [
-		topdir
-			? { k: 'Most-watched director', v: topdir.name, sub: topdir.watched + ' film' + (topdir.watched === 1 ? '' : 's'), href: `/films?director=${encodeURIComponent(topdir.name)}` }
-			: { k: 'Most-watched director', v: '—', sub: 'no data yet' },
+		topactor
+			? { k: 'Most-watched actor', v: topactor[0], sub: topactor[1] + ' film' + (topactor[1] === 1 ? '' : 's'), href: `/films?actor=${encodeURIComponent(topactor[0])}` }
+			: { k: 'Most-watched actor', v: '—', sub: 'no data yet' },
+		{
+			k: 'Longest watch streak',
+			v: longestStreak + ' days',
+			sub: 'consecutive days with a log',
+			href: '/activity'
+		},
 		topdecade
-			? { k: 'Signature decade', v: topdecade[0], sub: topdecade[1] + ' films', href: `/films?decade=${parseInt(topdecade[0])}` }
+			? {
+					k: 'Signature decade',
+					v: topdecade[0],
+					sub: isDecadeLiked
+						? `${topdecade[1]} liked film${topdecade[1] === 1 ? '' : 's'}`
+						: `${topdecade[1]} watch${topdecade[1] === 1 ? '' : 'es'} overall`,
+					href: `/films?decade=${parseInt(topdecade[0])}`
+				}
 			: { k: 'Signature decade', v: '—', sub: 'no data yet' },
-		{ k: 'Avg. runtime', v: avgruntime + ' min', sub: 'across all logged films' },
 		longestfilm?.tmdb?.runtime
 			? {
 					k: 'Longest sit',
@@ -175,10 +308,31 @@ export function computeoverview(data: dataset): overstats {
 					subhref: `/films/${filmslug(longestfilm.uri)}`
 				}
 			: { k: 'Longest sit', v: '—', sub: 'no runtime data' },
-		{ k: 'Subtitled', v: subtitledpct + '%', sub: 'of everything you watch' },
-		{ k: 'Liked rate', v: likedpct + '%', sub: 'films you rated 4 stars or higher' },
-		{ k: 'Pre-1970 cinema', v: pre1970pct + '%', sub: 'a real taste for the classics' },
-		{ k: 'Rewatch rate', v: rewatchpct + '%', sub: 'you return to your favorites' }
+		{
+			k: 'Languages',
+			v: numLanguages + ' language' + (numLanguages === 1 ? '' : 's'),
+			sub: 'from around the world',
+			href: '/world'
+		},
+		{ k: 'Avg. runtime', v: avgruntime + ' min', sub: 'across all logged films' },
+		topYear
+			? {
+					k: 'Favourite year',
+					v: String(topYear[0]),
+					sub: isYearLiked
+						? `${topYear[1]} liked film${topYear[1] === 1 ? '' : 's'}`
+						: `${topYear[1]} watch${topYear[1] === 1 ? '' : 'es'} overall`,
+					href: `/films?year=${topYear[0]}`
+				}
+			: { k: 'Favourite year', v: '—', sub: 'no data yet' },
+		topRewatchedFilm && topRewatched
+			? {
+					k: 'Most rewatched',
+					v: topRewatchedFilm.name,
+					sub: `${topRewatched.times} watches overall`,
+					href: `/films/${filmslug(topRewatchedFilm.uri)}`
+				}
+			: { k: 'Most rewatched', v: '—', sub: 'no rewatches yet' }
 	];
 
 	const hasratings = films.some((f) => f.rating !== null);

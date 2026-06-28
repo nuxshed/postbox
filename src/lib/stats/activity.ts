@@ -107,22 +107,50 @@ export function computeactivity(data: dataset): activitystats {
 
 	// count diary entries per film; if all entries are rewatches, add 1 for the implied prior watch
 	const diarycounts = new Map<string, { count: number; hasfirst: boolean }>();
+	const maxDateMap = new Map<string, string>();
+
 	for (const e of diary) {
 		const k = `${e.name}|${e.year}`;
 		if (!diarycounts.has(k)) diarycounts.set(k, { count: 0, hasfirst: false });
 		const entry = diarycounts.get(k)!;
 		entry.count++;
 		if (!e.rewatch) entry.hasfirst = true;
+
+		const dateVal = e.watcheddate || e.date;
+		if (dateVal) {
+			const prevMax = maxDateMap.get(k) ?? '';
+			if (dateVal > prevMax) {
+				maxDateMap.set(k, dateVal);
+			}
+		}
 	}
+
+	const favSet = new Set(data.profile?.favoriteFilms ?? []);
 
 	const mostrewatched = [...diarycounts.entries()]
 		.map(([k, { count, hasfirst }]) => ({ k, times: hasfirst ? count : count + 1 }))
 		.filter(({ times }) => times > 1)
 		.sort((a, b) => {
 			if (b.times !== a.times) return b.times - a.times;
-			const ra = filmbykey.get(a.k)?.rating ?? 0;
-			const rb = filmbykey.get(b.k)?.rating ?? 0;
-			return rb - ra;
+
+			const filmA = filmbykey.get(a.k);
+			const filmB = filmbykey.get(b.k);
+
+			const ratingA = filmA?.rating ?? 0;
+			const ratingB = filmB?.rating ?? 0;
+			if (ratingB !== ratingA) return ratingB - ratingA;
+
+			const likedA = filmA?.liked ? 1 : 0;
+			const likedB = filmB?.liked ? 1 : 0;
+			if (likedB !== likedA) return likedB - likedA;
+
+			const favA = (filmA && favSet.has(filmA.uri)) ? 1 : 0;
+			const favB = (filmB && favSet.has(filmB.uri)) ? 1 : 0;
+			if (favB !== favA) return favB - favA;
+
+			const latestA = maxDateMap.get(a.k) ?? '';
+			const latestB = maxDateMap.get(b.k) ?? '';
+			return latestB.localeCompare(latestA);
 		})
 		.slice(0, 5)
 		.map(({ k, times }) => {

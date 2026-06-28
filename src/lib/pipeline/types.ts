@@ -78,6 +78,7 @@ export type diaryentry = {
 export type profile = {
 	username: string;
 	name: string;
+	favoriteFilms?: string[];
 };
 
 export type dataset = {

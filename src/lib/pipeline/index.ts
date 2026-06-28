@@ -80,7 +80,8 @@ export async function loadfromzip(
 		existing &&
 		existing.films.length === films.length &&
 		existing.diary.length === diaryentries.length &&
-		existing.profile?.username === profile?.username
+		existing.profile?.username === profile?.username &&
+		existing.profile?.favoriteFilms !== undefined
 	) {
 		onprogress('done', films.length, films.length);
 		return existing;
@@ -165,7 +166,8 @@ export async function loadpipeline(
 		existing &&
 		existing.films.length === films.length &&
 		existing.diary.length === diary.length &&
-		existing.profile?.username === profile?.username
+		existing.profile?.username === profile?.username &&
+		existing.profile?.favoriteFilms !== undefined
 	) {
 		onprogress('done', films.length, films.length);
 		return existing;
