@@ -126,7 +126,9 @@
 				<!-- director -->
 				{#if film.tmdb?.director}
 					<div class="flex items-center gap-2">
-						<span class="font-mono text-[10.5px] tracking-[0.08em] uppercase" style="color: var(--text-dim);">Directed by</span>
+						<span class="font-mono text-[10.5px] tracking-[0.08em] uppercase" style="color: var(--text-dim);">
+							{film.tmdb.media_type === 'tv' ? 'Created by' : 'Directed by'}
+						</span>
 						<a
 							href="{base}/films?director={encodeURIComponent(film.tmdb.director)}"
 							class="text-[14px] font-medium hover:opacity-70 transition-opacity"

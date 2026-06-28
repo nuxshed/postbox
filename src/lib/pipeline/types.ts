@@ -61,6 +61,7 @@ export type tmdbdetails = {
 	countries: string[];
 	language: string;
 	popularity: number;
+	media_type?: 'movie' | 'tv';
 };
 
 export type enrichedfilm = film & { tmdb: tmdbdetails | null };
