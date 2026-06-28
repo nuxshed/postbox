@@ -8,6 +8,9 @@
 	import MetricToggle from '$lib/components/metrictoggle.svelte';
 	import IconStarFilled from '~icons/tabler/star-filled';
 
+	import { page } from '$app/stores';
+	import { goto } from '$app/navigation';
+
 	const dsctx = getContext<{ data: dataset | null }>('dataset');
 	const rangectx = getContext<{ kind: string }>('range');
 	const stats = $derived(dsctx.data ? computepeople(dsctx.data) : null);
@@ -17,9 +20,19 @@
 
 	const TABS = ['Directors', 'Actors', 'Crew'] as const;
 	type Tab = (typeof TABS)[number];
-	let tab = $state<Tab>('Directors');
+	const tab = $derived(
+		(TABS as readonly string[]).includes($page.url.searchParams.get('tab') ?? '')
+			? ($page.url.searchParams.get('tab') as Tab)
+			: 'Directors'
+	);
 	let expanded = $state(false);
 	let ratedmetric = $state('rating');
+
+	function settab(t: Tab) {
+		const params = new URLSearchParams($page.url.searchParams);
+		params.set('tab', t);
+		goto(`${base}/people?${params.toString()}`, { replaceState: true, noScroll: true });
+	}
 
 	$effect(() => {
 		tab;
@@ -113,7 +126,7 @@
 					style={tab === t
 						? 'font-weight: 600; color: var(--text); border-bottom: 2px solid var(--accent);'
 						: 'font-weight: 400; color: var(--text-muted); border-bottom: 2px solid transparent;'}
-					onclick={() => (tab = t)}>{t}</button
+					onclick={() => settab(t)}>{t}</button
 				>
 			{/each}
 		</div>
