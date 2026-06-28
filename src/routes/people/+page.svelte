@@ -94,6 +94,7 @@
 	function personhref(name: string): string {
 		if (tab === 'Directors') return `${base}/films?director=${encodeURIComponent(name)}`;
 		if (tab === 'Actors') return `${base}/films?actor=${encodeURIComponent(name)}`;
+		if (tab === 'Crew') return `${base}/films?crew=${encodeURIComponent(name)}`;
 		return '';
 	}
 </script>
@@ -433,8 +434,13 @@
 										{initials(c.name)}
 									</div>
 								{/if}
-								<span class="text-[13.5px] font-medium truncate" style="color: var(--text);"
-									>{c.name}</span
+								<a
+									href={personhref(c.name)}
+									class="text-[13.5px] font-medium truncate transition-[color]"
+									style="color: var(--text);"
+									onmouseenter={(e) => ((e.currentTarget as HTMLElement).style.color = 'var(--accent)')}
+									onmouseleave={(e) => ((e.currentTarget as HTMLElement).style.color = 'var(--text)')}
+									>{c.name}</a
 								>
 							</div>
 							<span class="font-mono text-[11px]" style="color: var(--text-muted);">{c.role}</span>

@@ -18,6 +18,7 @@
 	const director = $derived($page.url.searchParams.get('director') ?? '');
 	const decade = $derived($page.url.searchParams.get('decade') ?? '');
 	const actor = $derived($page.url.searchParams.get('actor') ?? '');
+	const crew = $derived($page.url.searchParams.get('crew') ?? '');
 	const country = $derived($page.url.searchParams.get('country') ?? '');
 	const language = $derived($page.url.searchParams.get('language') ?? '');
 	const tag = $derived($page.url.searchParams.get('tag') ?? '');
@@ -78,6 +79,7 @@
 		if (director) result = result.filter((f) => f.tmdb?.director === director);
 		if (decade) result = result.filter((f) => Math.floor(f.year / 10) * 10 === Number(decade));
 		if (actor) result = result.filter((f) => f.tmdb?.cast.includes(actor));
+		if (crew) result = result.filter((f) => f.tmdb?.crew?.some((c) => c.name === crew));
 		if (country) result = result.filter((f) => f.tmdb?.countries.map(displaycountry).includes(country));
 		if (language) result = result.filter((f) => f.tmdb?.language === language);
 		if (tag && dsctx.data) {
@@ -131,6 +133,7 @@
 			director ? { key: 'director', label: director } : null,
 			decade ? { key: 'decade', label: decade + 's' } : null,
 			actor ? { key: 'actor', label: actor } : null,
+			crew ? { key: 'crew', label: crew } : null,
 			country ? { key: 'country', label: country } : null,
 			language ? { key: 'language', label: displaylanguage(language) } : null,
 			tag ? { key: 'tag', label: '#' + tag } : null,
@@ -273,6 +276,18 @@
 					<option value="">Actor</option>
 					{#each [...new Set(allfilms.flatMap((f) => f.tmdb?.cast ?? []))].sort() as a (a)}
 						<option value={a}>{a}</option>
+					{/each}
+				</select>
+
+				<select
+					value={crew}
+					onchange={(e) => setparam('crew', (e.target as HTMLSelectElement).value)}
+					class={selectcls}
+					style="background: {crew ? 'color-mix(in oklab, var(--accent) 12%, var(--bg))' : 'var(--bg)'}; color: {crew ? 'var(--text)' : 'var(--text-muted)'};"
+				>
+					<option value="">Crew</option>
+					{#each [...new Set(allfilms.flatMap((f) => f.tmdb?.crew?.map((c) => c.name) ?? []))].sort() as cr (cr)}
+						<option value={cr}>{cr}</option>
 					{/each}
 				</select>
 
