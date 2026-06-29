@@ -34,9 +34,10 @@ const detailschema = z.object({
 		.optional()
 		.default([]),
 	production_countries: z
-		.array(z.object({ name: z.string() }))
+		.array(z.object({ iso_3166_1: z.string(), name: z.string() }))
 		.optional()
 		.default([]),
+	origin_country: z.array(z.string()).optional().default([]),
 	original_language: z.string(),
 	popularity: z.number(),
 	credits: z
@@ -75,9 +76,10 @@ const tvdetailschema = z.object({
 		.optional()
 		.default([]),
 	production_countries: z
-		.array(z.object({ name: z.string() }))
+		.array(z.object({ iso_3166_1: z.string(), name: z.string() }))
 		.optional()
 		.default([]),
+	origin_country: z.array(z.string()).optional().default([]),
 	original_language: z.string(),
 	popularity: z.number(),
 	created_by: z
@@ -113,6 +115,30 @@ const tvdetailschema = z.object({
 		})
 		.optional()
 });
+
+function extractOriginCountries(d: {
+	production_countries?: { iso_3166_1: string; name: string }[];
+	origin_country?: string[];
+}): string[] {
+	const prodCountriesMap = new Map((d.production_countries ?? []).map((c) => [c.iso_3166_1, c.name]));
+	let originCountries = (d.origin_country ?? [])
+		.map((code) => {
+			const match = prodCountriesMap.get(code);
+			if (match) return match;
+			try {
+				const regionNames = new Intl.DisplayNames(['en'], { type: 'region' });
+				return regionNames.of(code) ?? code;
+			} catch {
+				return code;
+			}
+		})
+		.filter((name): name is string => typeof name === 'string');
+
+	if (originCountries.length === 0 && (d.production_countries ?? []).length > 0) {
+		originCountries = (d.production_countries ?? []).map((c) => c.name);
+	}
+	return originCountries;
+}
 
 async function fetchjson(url: string): Promise<unknown> {
 	const res = await fetch(url);
@@ -183,7 +209,7 @@ export async function enrichone(f: film): Promise<enrichedfilm> {
 				cast: castdata.map((c) => c.name),
 				castdata,
 				crew,
-				countries: (d.production_countries ?? []).map((c) => c.name),
+				countries: extractOriginCountries(d),
 				language: d.original_language,
 				popularity: d.popularity,
 				media_type: 'movie'
@@ -237,7 +263,7 @@ export async function enrichone(f: film): Promise<enrichedfilm> {
 				cast: castdata.map((c) => c.name),
 				castdata,
 				crew,
-				countries: (d.production_countries ?? []).map((c) => c.name),
+				countries: extractOriginCountries(d),
 				language: d.original_language,
 				popularity: d.popularity,
 				media_type: 'tv'
