@@ -149,16 +149,36 @@
 
 	const datamap = $derived(new Map(data.map((d) => [d.name, d])));
 	const maxcount = $derived(Math.max(...data.map((d) => d.count), 1));
-	const maxavg = $derived(Math.max(...data.map((d) => d.avg ?? 0), 1));
 	const maxliked = $derived(Math.max(...data.map((d) => d.liked ?? 0), 1));
+
+	const maxavg = $derived(
+		data.some((d) => d.avg > 0)
+			? Math.max(...data.filter((d) => d.avg > 0).map((d) => d.avg))
+			: 5
+	);
+	const minavg = $derived(
+		data.some((d) => d.avg > 0)
+			? Math.min(...data.filter((d) => d.avg > 0).map((d) => d.avg))
+			: 1
+	);
 
 	function getopacity(id: number): number | null {
 		const name = ISO[id];
 		const entry = name ? datamap.get(name) : null;
 		if (!entry) return null;
+
 		const val = metric === 'liked' ? (entry.liked ?? 0) : metric === 'count' ? entry.count : (entry.avg ?? 0);
-		const mx = metric === 'liked' ? maxliked : metric === 'count' ? maxcount : maxavg;
-		return 0.18 + Math.min(1, val / mx) * 0.72;
+		if (val === 0) return null;
+
+		if (metric === 'rating') {
+			const range = maxavg - minavg;
+			const fraction = range > 0 ? (val - minavg) / range : 1;
+			return 0.18 + fraction * 0.72;
+		} else {
+			const mx = metric === 'liked' ? maxliked : maxcount;
+			const fraction = mx > 1 ? Math.log(val) / Math.log(mx) : 1;
+			return 0.18 + fraction * 0.72;
+		}
 	}
 
 	onMount(async () => {
