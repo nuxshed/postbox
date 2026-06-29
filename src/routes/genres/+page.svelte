@@ -3,26 +3,62 @@
 	import type { dataset } from '$lib/pipeline/types';
 	import { computegenres } from '$lib/stats/genres';
 	import { base } from '$app/paths';
+	import { filmslug, tmdbposter } from '$lib/utils';
 	import BarList from '$lib/components/barlist.svelte';
 	import Card from '$lib/components/card.svelte';
 	import Infotip from '$lib/components/infotip.svelte';
 	import MetricToggle from '$lib/components/metrictoggle.svelte';
 	import ListExpansion from '$lib/components/listexpansion.svelte';
+	import HighlightsCard from '$lib/components/highlightscard.svelte';
 
 	const dsctx = getContext<{ data: dataset | null }>('dataset');
 	const rangectx = getContext<{ kind: string }>('range');
 	const genreminthreshold = $derived(
 		rangectx.kind === 'all' ? 5 : rangectx.kind === '6mo' ? 2 : 1
 	);
-	const stats = $derived(dsctx.data ? computegenres(dsctx.data, genreminthreshold) : null);
-
 	const hasratings = $derived(dsctx.data?.films.some((f) => f.rating !== null) ?? false);
 	const haslikes = $derived(dsctx.data?.films.some((f) => f.liked) ?? false);
+	const rawstats = $derived(dsctx.data ? computegenres(dsctx.data, genreminthreshold) : null);
 
-	// toggle for the "highest rated" cards
+	let highlightmetric = $state<'rating' | 'liked' | 'count'>('rating');
 	let ratedmetric = $state('rating');
 	let countLimit = $state(10);
 	let ratedLimit = $state(10);
+
+	const stats = $derived(
+		dsctx.data
+			? computegenres(dsctx.data, genreminthreshold, highlightmetric)
+			: null
+	);
+
+	const highlightopts = $derived.by(() => {
+		const opts = [{ id: 'count', label: 'Watched' }];
+		if (haslikes) {
+			opts.push({ id: 'liked', label: 'Liked' });
+		}
+		const hasRatedGenres = rawstats && rawstats.genrecount.some((g) => g.count >= genreminthreshold && g.avg > 0);
+		if (hasratings && hasRatedGenres) {
+			opts.push({ id: 'rating', label: 'Rating' });
+		}
+		return opts;
+	});
+
+	$effect(() => {
+		if (dsctx.data && highlightopts.length > 0) {
+			if (!highlightopts.some((o) => o.id === highlightmetric)) {
+				const hasRating = highlightopts.some((o) => o.id === 'rating');
+				const hasLiked = highlightopts.some((o) => o.id === 'liked');
+				if (hasRating) {
+					highlightmetric = 'rating';
+				} else if (hasLiked) {
+					highlightmetric = 'liked';
+				} else {
+					highlightmetric = 'count';
+				}
+			}
+		}
+	});
+
 	$effect(() => {
 		if (dsctx.data && ratedopts.length > 0) {
 			const hasCurrent = ratedopts.some((o) => o.id === ratedmetric);
@@ -165,6 +201,22 @@
 				{/if}
 			</section>
 		</div>
+
+		<!-- genre highlights -->
+		<HighlightsCard
+			title="Genre highlights"
+			cap="your favourite film from your top genres"
+			items={stats.genrehighlights.map((gh) => ({
+				label: gh.genre,
+				count: gh.count,
+				avg: gh.avg,
+				liked: gh.liked,
+				top: gh.top
+			}))}
+			metric={highlightmetric}
+			metricOptions={highlightopts}
+			onchange={(v: 'rating' | 'liked' | 'count') => (highlightmetric = v)}
+		/>
 
 		<!-- most watched + highest rated/liked -->
 		<div class="grid grid-cols-2 gap-[18px] items-start">

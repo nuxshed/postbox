@@ -9,19 +9,33 @@
 	import WorldMap from '$lib/components/worldmap.svelte';
 	import Card from '$lib/components/card.svelte';
 	import ListExpansion from '$lib/components/listexpansion.svelte';
+	import HighlightsCard from '$lib/components/highlightscard.svelte';
 
 	const dsctx = getContext<{ data: dataset | null }>('dataset');
-	const stats = $derived(dsctx.data ? computeworld(dsctx.data) : null);
+	const rangectx = getContext<{ kind: string }>('range');
+	const genreminthreshold = $derived(
+		rangectx.kind === 'all' ? 5 : rangectx.kind === '6mo' ? 2 : 1
+	);
 
 	let mapMetric = $state('count');
 	let countryMetric = $state('count');
 	let langMetric = $state('count');
+	let countryHighlightMetric = $state<'rating' | 'liked' | 'count'>('rating');
+	let langHighlightMetric = $state<'rating' | 'liked' | 'count'>('rating');
 
 	let countryLimit = $state(10);
 	let langLimit = $state(10);
 
 	const hasratings = $derived(dsctx.data?.films.some((f) => f.rating !== null) ?? false);
 	const haslikes = $derived(dsctx.data?.films.some((f) => f.liked) ?? false);
+	const rawstats = $derived(dsctx.data ? computeworld(dsctx.data, genreminthreshold) : null);
+
+	const stats = $derived(
+		dsctx.data
+			? computeworld(dsctx.data, genreminthreshold, countryHighlightMetric, langHighlightMetric)
+			: null
+	);
+
 	const toggleopts = $derived.by(() => {
 		const opts = [{ id: 'count', label: 'Watched' }];
 		if (haslikes) {
@@ -31,6 +45,57 @@
 			opts.push({ id: 'rating', label: 'Rating' });
 		}
 		return opts;
+	});
+
+	const countryHighlightOpts = $derived.by(() => {
+		const opts = [{ id: 'count', label: 'Watched' }];
+		if (haslikes) {
+			opts.push({ id: 'liked', label: 'Liked' });
+		}
+		const hasRatedCountries = rawstats && rawstats.countrydist.some((c) => c.avg > 0);
+		if (hasratings && hasRatedCountries) {
+			opts.push({ id: 'rating', label: 'Rating' });
+		}
+		return opts;
+	});
+
+	const langHighlightOpts = $derived.by(() => {
+		const opts = [{ id: 'count', label: 'Watched' }];
+		if (haslikes) {
+			opts.push({ id: 'liked', label: 'Liked' });
+		}
+		const hasRatedLangs = rawstats && rawstats.langdist.some((l) => l.count >= genreminthreshold && l.avg > 0);
+		if (hasratings && hasRatedLangs) {
+			opts.push({ id: 'rating', label: 'Rating' });
+		}
+		return opts;
+	});
+
+	$effect(() => {
+		if (dsctx.data) {
+			if (countryHighlightOpts.length > 0 && !countryHighlightOpts.some((o) => o.id === countryHighlightMetric)) {
+				const hasRating = countryHighlightOpts.some((o) => o.id === 'rating');
+				const hasLiked = countryHighlightOpts.some((o) => o.id === 'liked');
+				if (hasRating) {
+					countryHighlightMetric = 'rating';
+				} else if (hasLiked) {
+					countryHighlightMetric = 'liked';
+				} else {
+					countryHighlightMetric = 'count';
+				}
+			}
+			if (langHighlightOpts.length > 0 && !langHighlightOpts.some((o) => o.id === langHighlightMetric)) {
+				const hasRating = langHighlightOpts.some((o) => o.id === 'rating');
+				const hasLiked = langHighlightOpts.some((o) => o.id === 'liked');
+				if (hasRating) {
+					langHighlightMetric = 'rating';
+				} else if (hasLiked) {
+					langHighlightMetric = 'liked';
+				} else {
+					langHighlightMetric = 'count';
+				}
+			}
+		}
 	});
 
 	$effect(() => {
@@ -110,6 +175,38 @@
 				oncountryclick={(name) => goto(`${base}/films?country=${encodeURIComponent(name)}`)}
 			/>
 		</Card>
+
+		<!-- country and language highlights -->
+		<div class="grid grid-cols-2 gap-[18px]">
+			<HighlightsCard
+				title="Country highlights"
+				cap="your favourite film from your top countries"
+				items={stats.countryhighlights.map((ch) => ({
+					label: ch.country,
+					count: ch.count,
+					avg: ch.avg,
+					liked: ch.liked,
+					top: ch.top
+				}))}
+				metric={countryHighlightMetric}
+				metricOptions={countryHighlightOpts}
+				onchange={(v: 'rating' | 'liked' | 'count') => (countryHighlightMetric = v)}
+			/>
+			<HighlightsCard
+				title="Language highlights"
+				cap="your favourite film from your top languages"
+				items={stats.langhighlights.map((lh) => ({
+					label: lh.language,
+					count: lh.count,
+					avg: lh.avg,
+					liked: lh.liked,
+					top: lh.top
+				}))}
+				metric={langHighlightMetric}
+				metricOptions={langHighlightOpts}
+				onchange={(v: 'rating' | 'liked' | 'count') => (langHighlightMetric = v)}
+			/>
+		</div>
 
 		<!-- country + language breakdown -->
 		<div class="grid grid-cols-2 gap-[18px] items-start">

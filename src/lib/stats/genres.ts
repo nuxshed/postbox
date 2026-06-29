@@ -1,4 +1,4 @@
-import type { dataset } from '$lib/pipeline/types';
+import type { dataset, enrichedfilm } from '$lib/pipeline/types';
 
 export type genrestat = { name: string; count: number; avg: number; liked: number };
 
@@ -14,10 +14,24 @@ export type genrestats = {
 	nichedesc: string;
 	subtitledpct: number;
 	totalgenres: number;
+	genrehighlights: {
+		genre: string;
+		count: number;
+		avg: string;
+		liked: number;
+		top: {
+			name: string;
+			director: string | null;
+			rating: number | null;
+			poster: string | null;
+			uri: string;
+		} | null;
+	}[];
+	genreSelectionMethod: 'rating' | 'liked' | 'count';
 };
 
-export function computegenres(data: dataset, minthreshold = 20): genrestats {
-	const { films } = data;
+export function computegenres(data: dataset, minthreshold = 20, metric?: 'rating' | 'liked' | 'count'): genrestats {
+	const { films, diary } = data;
 
 	const genremap = new Map<string, { count: number; ratings: number[]; liked: number }>();
 	for (const f of films) {
@@ -69,6 +83,122 @@ export function computegenres(data: dataset, minthreshold = 20): genrestats {
 
 	const fallback: genrestat = { name: '—', count: 0, avg: 0, liked: 0 };
 
+	// Diary and watchlist utilities for movie matching
+	const diarycounts = new Map<string, { count: number; hasfirst: boolean }>();
+	const maxDateMap = new Map<string, string>();
+
+	for (const e of diary) {
+		const k = `${e.name}|${e.year}`;
+		if (!diarycounts.has(k)) diarycounts.set(k, { count: 0, hasfirst: false });
+		const entry = diarycounts.get(k)!;
+		entry.count++;
+		if (!e.rewatch) entry.hasfirst = true;
+
+		const dateVal = e.watcheddate || e.date;
+		if (dateVal) {
+			const prevMax = maxDateMap.get(k) ?? '';
+			if (dateVal > prevMax) {
+				maxDateMap.set(k, dateVal);
+			}
+		}
+	}
+
+	const getRewatchTimes = (k: string) => {
+		const entry = diarycounts.get(k);
+		if (!entry) return 1;
+		return entry.hasfirst ? entry.count : entry.count + 1;
+	};
+
+	const getLatestWatchDate = (f: enrichedfilm) => {
+		const k = `${f.name}|${f.year}`;
+		return maxDateMap.get(k) || f.lastwatched || f.firstwatched || '';
+	};
+
+	const favSet = new Set(data.profile?.favoriteFilms ?? []);
+
+	// Determine top 7 genres selection based on active metric or fallback hierarchy
+	let selectedGenres: genrestat[] = [];
+	let genreSelectionMethod: 'rating' | 'liked' | 'count' = 'rating';
+
+	const eligibleRated = genrecount.filter((g) => g.count >= minthreshold && g.avg > 0);
+	const eligibleLiked = genrecount.filter((g) => g.liked > 0);
+
+	let activeMetric = metric;
+	if (!activeMetric) {
+		if (eligibleRated.length > 0) {
+			activeMetric = 'rating';
+		} else if (eligibleLiked.length > 0) {
+			activeMetric = 'liked';
+		} else {
+			activeMetric = 'count';
+		}
+	}
+
+	if (activeMetric === 'rating') {
+		selectedGenres = eligibleRated
+			.slice()
+			.sort((a, b) => b.avg - a.avg || b.count - a.count)
+			.slice(0, 7);
+		genreSelectionMethod = 'rating';
+	} else if (activeMetric === 'liked') {
+		selectedGenres = eligibleLiked
+			.slice()
+			.sort((a, b) => b.liked - a.liked || b.count - a.count)
+			.slice(0, 7);
+		genreSelectionMethod = 'liked';
+	} else {
+		selectedGenres = genrecount.slice(0, 7);
+		genreSelectionMethod = 'count';
+	}
+
+	const genrehighlights = selectedGenres.map((g) => {
+		const genreName = g.name;
+		const count = g.count;
+		const avg = g.avg > 0 ? g.avg.toFixed(1) : '—';
+		const liked = g.liked;
+
+		const candidates = films.filter((f) => f.tmdb && f.tmdb.genres.includes(genreName));
+
+		candidates.sort((a, b) => {
+			// 1. Highest rated
+			const rA = a.rating ?? 0;
+			const rB = b.rating ?? 0;
+			if (rB !== rA) return rB - rA;
+
+			// 2. Check if in favourites
+			const favA = favSet.has(a.uri) ? 1 : 0;
+			const favB = favSet.has(b.uri) ? 1 : 0;
+			if (favB !== favA) return favB - favA;
+
+			// 3. Most rewatched
+			const rwA = getRewatchTimes(`${a.name}|${a.year}`);
+			const rwB = getRewatchTimes(`${b.name}|${b.year}`);
+			if (rwB !== rwA) return rwB - rwA;
+
+			// 4. Most recently watched
+			const dateA = getLatestWatchDate(a);
+			const dateB = getLatestWatchDate(b);
+			return dateB.localeCompare(dateA);
+		});
+
+		const top = candidates[0] ?? null;
+		return {
+			genre: genreName,
+			count,
+			avg,
+			liked,
+			top: top
+				? {
+						name: top.name,
+						director: top.tmdb?.director ?? null,
+						rating: top.rating,
+						poster: top.tmdb?.poster ?? null,
+						uri: top.uri
+					}
+				: null
+		};
+	});
+
 	return {
 		genrecount,
 		topwatched,
@@ -80,6 +210,8 @@ export function computegenres(data: dataset, minthreshold = 20): genrestats {
 		nichescore,
 		nichedesc,
 		subtitledpct,
-		totalgenres: genrecount.length
+		totalgenres: genrecount.length,
+		genrehighlights,
+		genreSelectionMethod
 	};
 }

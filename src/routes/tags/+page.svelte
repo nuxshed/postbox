@@ -8,15 +8,56 @@
 	import MetricToggle from '$lib/components/metrictoggle.svelte';
 	import IconStarFilled from '~icons/tabler/star-filled';
 	import ListExpansion from '$lib/components/listexpansion.svelte';
+	import HighlightsCard from '$lib/components/highlightscard.svelte';
 
 	const dsctx = getContext<{ data: dataset | null }>('dataset');
-	const stats = $derived(dsctx.data ? computetags(dsctx.data) : null);
+	const rangectx = getContext<{ kind: string }>('range');
+	const tagminthreshold = $derived(
+		rangectx.kind === 'all' ? 5 : rangectx.kind === '6mo' ? 2 : 1
+	);
 
 	const hasratings = $derived(dsctx.data?.films.some((f) => f.rating !== null) ?? false);
 	const haslikes = $derived(dsctx.data?.films.some((f) => f.liked) ?? false);
+	const rawstats = $derived(dsctx.data ? computetags(dsctx.data, tagminthreshold) : null);
 
+	let tagHighlightMetric = $state<'rating' | 'liked' | 'count'>('rating');
 	let limit = $state(10);
 	let ratedmetric = $state('rating');
+
+	const stats = $derived(
+		dsctx.data
+			? computetags(dsctx.data, tagminthreshold, tagHighlightMetric)
+			: null
+	);
+
+	const highlightopts = $derived.by(() => {
+		const opts = [{ id: 'count', label: 'Watched' }];
+		if (haslikes) {
+			opts.push({ id: 'liked', label: 'Liked' });
+		}
+		const hasRatedTags = rawstats && rawstats.tags.some((t) => t.avg > 0);
+		if (hasratings && hasRatedTags) {
+			opts.push({ id: 'rating', label: 'Rating' });
+		}
+		return opts;
+	});
+
+	$effect(() => {
+		if (dsctx.data && highlightopts.length > 0) {
+			if (!highlightopts.some((o) => o.id === tagHighlightMetric)) {
+				const hasRating = highlightopts.some((o) => o.id === 'rating');
+				const hasLiked = highlightopts.some((o) => o.id === 'liked');
+				if (hasRating) {
+					tagHighlightMetric = 'rating';
+				} else if (hasLiked) {
+					tagHighlightMetric = 'liked';
+				} else {
+					tagHighlightMetric = 'count';
+				}
+			}
+		}
+	});
+
 	$effect(() => {
 		if (dsctx.data && ratedopts.length > 0) {
 			const hasCurrent = ratedopts.some((o) => o.id === ratedmetric);
@@ -139,6 +180,21 @@
 				<div class="text-[12.5px]" style="color: var(--text-muted);">across all tags</div>
 			</section>
 		</div>
+		<!-- tag highlights -->
+		<HighlightsCard
+			title="Tag highlights"
+			cap="your favourite film from your top tags"
+			items={stats.taghighlights.map((th) => ({
+				label: '#' + th.tag,
+				count: th.count,
+				avg: th.avg,
+				liked: th.liked,
+				top: th.top
+			}))}
+			metric={tagHighlightMetric}
+			metricOptions={highlightopts}
+			onchange={(v: 'rating' | 'liked' | 'count') => (tagHighlightMetric = v)}
+		/>
 
 		<!-- two lists -->
 		<div class="grid grid-cols-2 gap-[18px]">
