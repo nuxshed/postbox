@@ -1,11 +1,79 @@
 import { z } from 'zod';
 import type { film, enrichedfilm, tmdbdetails, tmdbperson, tmdbcrew } from './types';
+import { filmslug } from '$lib/utils';
 
 const APIKEY = import.meta.env.VITE_TMDB_KEY as string;
 
 const BASE = 'https://api.themoviedb.org/3';
 const IMG = 'https://image.tmdb.org/t/p/w500';
 const PORTRAIT = 'https://image.tmdb.org/t/p/w185';
+
+let cachedOverrides: Record<string, string> | null = null;
+
+async function getOverrides(): Promise<Record<string, string>> {
+	if (cachedOverrides !== null) {
+		return cachedOverrides;
+	}
+	try {
+		const { base } = await import('$app/paths');
+		const res = await fetch(`${base}/overrides.json`);
+		if (res.ok) {
+			cachedOverrides = await res.json().catch(() => ({}));
+		} else {
+			cachedOverrides = {};
+		}
+	} catch (e) {
+		console.warn('[tmdb] failed to load overrides:', e);
+		cachedOverrides = {};
+	}
+	return cachedOverrides ?? {};
+}
+
+function buildStubDetails(posterPath: string): tmdbdetails {
+	return {
+		tmdbid: 0,
+		poster: posterPath.startsWith('http://') || posterPath.startsWith('https://')
+			? posterPath
+			: IMG + posterPath,
+		backdrop: null,
+		overview: null,
+		runtime: null,
+		genres: [],
+		director: null,
+		directordata: null,
+		cast: [],
+		castdata: [],
+		crew: [],
+		countries: [],
+		language: 'en',
+		popularity: 0,
+		media_type: 'movie'
+	};
+}
+
+function getOverrideCandidates(f: film): string[] {
+	const candidates: string[] = [];
+
+	const shortcode = filmslug(f.uri);
+	if (shortcode) {
+		candidates.push(shortcode);
+	}
+
+	const nameSlug = f.name
+		.toLowerCase()
+		.replace(/½/g, '-half')
+		.replace(/[^a-z0-9]+/g, '-')
+		.replace(/^-+|-+$/g, '');
+
+	if (nameSlug) {
+		candidates.push(nameSlug);
+		if (f.year) {
+			candidates.push(`${nameSlug}-${f.year}`);
+		}
+	}
+
+	return candidates;
+}
 
 const CREW_JOBS: Record<string, string> = {
 	'Director of Photography': 'Cinematography',
@@ -116,37 +184,33 @@ const tvdetailschema = z.object({
 		.optional()
 });
 
-function extractOriginCountries(d: {
-	production_countries?: { iso_3166_1: string; name: string }[];
-	origin_country?: string[];
-}): string[] {
-	const prodCountriesMap = new Map((d.production_countries ?? []).map((c) => [c.iso_3166_1, c.name]));
-	let originCountries = (d.origin_country ?? [])
-		.map((code) => {
-			const match = prodCountriesMap.get(code);
-			if (match) return match;
-			try {
-				const regionNames = new Intl.DisplayNames(['en'], { type: 'region' });
-				return regionNames.of(code) ?? code;
-			} catch {
-				return code;
-			}
-		})
-		.filter((name): name is string => typeof name === 'string');
-
-	if (originCountries.length === 0 && (d.production_countries ?? []).length > 0) {
-		originCountries = (d.production_countries ?? []).map((c) => c.name);
+function extractOriginCountries(d: z.infer<typeof detailschema> | z.infer<typeof tvdetailschema>): string[] {
+	if (d.production_countries && d.production_countries.length > 0) {
+		return d.production_countries.map((c) => c.name);
 	}
-	return originCountries;
+	if (d.origin_country && d.origin_country.length > 0) {
+		return d.origin_country;
+	}
+	return [];
 }
 
-async function fetchjson(url: string): Promise<unknown> {
+async function fetchjson(url: string) {
 	const res = await fetch(url);
-	if (!res.ok) throw new Error(`HTTP ${res.status} for ${url}`);
+	if (!res.ok) throw new Error(`HTTP error ${res.status}: ${res.statusText}`);
 	return res.json();
 }
 
 export async function enrichone(f: film): Promise<enrichedfilm> {
+	const candidates = getOverrideCandidates(f);
+	let posterOverride: string | null = null;
+	const overrides = await getOverrides();
+	for (const candidate of candidates) {
+		if (overrides[candidate]) {
+			posterOverride = overrides[candidate];
+			break;
+		}
+	}
+
 	try {
 		const searchurl = `${BASE}/search/movie?api_key=${APIKEY}&query=${encodeURIComponent(f.name)}&year=${f.year}`;
 		const searchraw = await fetchjson(searchurl);
@@ -169,6 +233,9 @@ export async function enrichone(f: film): Promise<enrichedfilm> {
 		}
 
 		if (id === null) {
+			if (posterOverride) {
+				return { ...f, tmdb: buildStubDetails(posterOverride) };
+			}
 			return { ...f, tmdb: null };
 		}
 
@@ -178,6 +245,9 @@ export async function enrichone(f: film): Promise<enrichedfilm> {
 			const detail = detailschema.safeParse(detailraw);
 			if (!detail.success) {
 				console.warn(`[tmdb] invalid detail for ${f.name}:`, detail.error.flatten());
+				if (posterOverride) {
+					return { ...f, tmdb: buildStubDetails(posterOverride) };
+				}
 				return { ...f, tmdb: null };
 			}
 
@@ -199,7 +269,9 @@ export async function enrichone(f: film): Promise<enrichedfilm> {
 				}));
 			const tmdb: tmdbdetails = {
 				tmdbid: d.id,
-				poster: d.poster_path ? IMG + d.poster_path : null,
+				poster: posterOverride
+					? (posterOverride.startsWith('http://') || posterOverride.startsWith('https://') ? posterOverride : IMG + posterOverride)
+					: (d.poster_path ? IMG + d.poster_path : null),
 				backdrop: d.backdrop_path ? IMG + d.backdrop_path : null,
 				overview: d.overview ?? null,
 				runtime: d.runtime ?? null,
@@ -222,6 +294,9 @@ export async function enrichone(f: film): Promise<enrichedfilm> {
 			const detail = tvdetailschema.safeParse(detailraw);
 			if (!detail.success) {
 				console.warn(`[tmdb] invalid TV detail for ${f.name}:`, detail.error.flatten());
+				if (posterOverride) {
+					return { ...f, tmdb: buildStubDetails(posterOverride) };
+				}
 				return { ...f, tmdb: null };
 			}
 
@@ -253,7 +328,9 @@ export async function enrichone(f: film): Promise<enrichedfilm> {
 			
 			const tmdb: tmdbdetails = {
 				tmdbid: d.id,
-				poster: d.poster_path ? IMG + d.poster_path : null,
+				poster: posterOverride
+					? (posterOverride.startsWith('http://') || posterOverride.startsWith('https://') ? posterOverride : IMG + posterOverride)
+					: (d.poster_path ? IMG + d.poster_path : null),
 				backdrop: d.backdrop_path ? IMG + d.backdrop_path : null,
 				overview: d.overview ?? null,
 				runtime: d.episode_run_time?.[0] ?? null,
@@ -273,6 +350,9 @@ export async function enrichone(f: film): Promise<enrichedfilm> {
 		}
 	} catch (e) {
 		console.warn(`[tmdb] failed for ${f.name}:`, e);
+		if (posterOverride) {
+			return { ...f, tmdb: buildStubDetails(posterOverride) };
+		}
 		return { ...f, tmdb: null };
 	}
 }
