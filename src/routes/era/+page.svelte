@@ -17,6 +17,7 @@
 	let seasonmetric = $state('count');
 	let yearmetric = $state('count');
 	let hoveredDecade = $state<string | null>(null);
+	let hoveredYear = $state<string | null>(null);
 
 	const hasratings = $derived(dsctx.data?.films.some((f) => f.rating !== null) ?? false);
 	const haslikes = $derived(dsctx.data?.films.some((f) => f.liked) ?? false);
@@ -177,17 +178,19 @@
 							class="flex flex-col p-3.5 rounded-[10px] border border-[var(--border)] gap-2.5 transition-colors duration-200"
 							style="background: {hoveredDecade === era.label ? 'color-mix(in oklab, var(--text) 4%, var(--bg-1))' : 'var(--bg-1)'};"
 						>
-							<div class="flex items-baseline justify-between">
+							<a
+								href="{base}/films?decade={parseInt(era.label.slice(0, 4))}"
+								class="group/header flex items-baseline justify-between cursor-pointer"
+							>
 								<span
-									class="font-mono text-[10px] tracking-[0.12em] uppercase"
-									style="color: var(--text-dim);"
+									class="font-mono text-[10px] tracking-[0.12em] uppercase transition-colors text-[var(--text-dim)] group-hover/header:text-[var(--accent-green)]"
 								>
 									{era.label}
 								</span>
-								<span class="font-num text-[11px]" style="color: var(--text-muted);">
+								<span class="font-num text-[11px] transition-colors text-[var(--text-muted)] group-hover/header:text-[var(--accent-green)]">
 									{era.count.toLocaleString()} film{era.count === 1 ? '' : 's'}
 								</span>
-							</div>
+							</a>
 
 							{#if era.top}
 								{@const fs = filmslug(era.top.uri)}
@@ -234,6 +237,98 @@
 												title={era.top.director}
 											>
 												by {era.top.director}
+											</div>
+										{/if}
+									</div>
+								</a>
+							{:else}
+								<div
+									class="flex-1 flex items-center justify-center rounded-[8px] border border-dashed border-[var(--border)]"
+									style="aspect-ratio: 2/3; background: var(--bg-card);"
+								>
+									<span class="font-mono text-[11px]" style="color: var(--text-dim);">—</span>
+								</div>
+							{/if}
+						</div>
+					{/if}
+				{/each}
+			</div>
+		</Card>
+
+		<!-- year highlights -->
+		<Card title="Year highlights" cap="your favourite film from each year">
+			{#snippet actions()}
+				<Infotip text="<strong style='color: var(--text); font-weight: bold; display: block; margin-bottom: 4px;'>Selection priority</strong>Films are ranked by highest rating. Ties are broken by favourites, then rewatch count, and finally recency." />
+			{/snippet}
+			<div
+				class="grid gap-[14px]"
+				style="grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));"
+			>
+				{#each stats.yearhighlights as yh (yh.label)}
+					{#if yh.count > 0 || yh.top}
+						<div
+							class="flex flex-col p-3.5 rounded-[10px] border border-[var(--border)] gap-2.5 transition-colors duration-200"
+							style="background: {hoveredYear === yh.label ? 'color-mix(in oklab, var(--text) 4%, var(--bg-1))' : 'var(--bg-1)'};"
+						>
+							<a
+								href="{base}/films?year={yh.label}"
+								class="group/header flex items-baseline justify-between cursor-pointer"
+							>
+								<span
+									class="font-mono text-[10px] tracking-[0.12em] uppercase transition-colors text-[var(--text-dim)] group-hover/header:text-[var(--accent-green)]"
+								>
+									{yh.label}
+								</span>
+								<span class="font-num text-[11px] transition-colors text-[var(--text-muted)] group-hover/header:text-[var(--accent-green)]">
+									{yh.count.toLocaleString()} film{yh.count === 1 ? '' : 's'}
+								</span>
+							</a>
+
+							{#if yh.top}
+								{@const fs = filmslug(yh.top.uri)}
+								{@const poster = tmdbposter(yh.top.poster)}
+								<a
+									href="{base}/films/{fs}"
+									class="group flex flex-col gap-2"
+									onmouseenter={() => (hoveredYear = yh.label)}
+									onmouseleave={() => (hoveredYear = null)}
+								>
+									<div
+										class="relative overflow-hidden rounded-[8px] border border-[var(--border)] flex flex-col"
+										style="aspect-ratio: 2/3; background: var(--bg-card);"
+									>
+										{#if poster}
+											<img
+												src={poster}
+												alt={yh.top.name}
+												class="w-full h-full object-cover"
+												loading="lazy"
+											/>
+										{:else}
+											<div class="flex-1 flex items-end p-3">
+												<span
+													class="font-display font-semibold text-[12px] leading-tight"
+													style="color: var(--text-muted);"
+												>
+													{yh.top.name}
+												</span>
+											</div>
+										{/if}
+									</div>
+									<div>
+										<div
+											class="text-[12px] font-medium leading-tight truncate group-hover:text-[var(--accent)] transition-colors"
+											title={yh.top.name}
+										>
+											{yh.top.name}
+										</div>
+										{#if yh.top.director}
+											<div
+												class="text-[11px] mt-0.5 truncate"
+												style="color: var(--text-dim);"
+												title={yh.top.director}
+											>
+												by {yh.top.director}
 											</div>
 										{/if}
 									</div>

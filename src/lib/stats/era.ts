@@ -16,6 +16,18 @@ export type erastats = {
 			uri: string;
 		} | null;
 	}[];
+	yearhighlights: {
+		label: string;
+		count: number;
+		avg: string;
+		top: {
+			name: string;
+			director: string | null;
+			rating: number | null;
+			poster: string | null;
+			uri: string;
+		} | null;
+	}[];
 };
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -164,5 +176,53 @@ export function computeera(data: dataset): erastats {
 		};
 	});
 
-	return { decadedist, releaseyears, seasonal, erahighlights };
+	// year highlights: top-rated film per release year in chronological order
+	const yearhighlights = releaseyears.map((y) => {
+		const year = y.year;
+		const label = String(year);
+		const count = y.count;
+		const avg = y.avg > 0 ? y.avg.toFixed(1) : '—';
+		
+		const candidates = films.filter((f) => f.year === year);
+		
+		candidates.sort((a, b) => {
+			// 1. Highest rated
+			const rA = a.rating ?? 0;
+			const rB = b.rating ?? 0;
+			if (rB !== rA) return rB - rA;
+
+			// 2. Check if in favourites
+			const favA = favSet.has(a.uri) ? 1 : 0;
+			const favB = favSet.has(b.uri) ? 1 : 0;
+			if (favB !== favA) return favB - favA;
+
+			// 3. Most rewatched
+			const rwA = getRewatchTimes(`${a.name}|${a.year}`);
+			const rwB = getRewatchTimes(`${b.name}|${b.year}`);
+			if (rwB !== rwA) return rwB - rwA;
+
+			// 4. Most recently watched
+			const dateA = getLatestWatchDate(a);
+			const dateB = getLatestWatchDate(b);
+			return dateB.localeCompare(dateA);
+		});
+
+		const top = candidates[0] ?? null;
+		return {
+			label,
+			count,
+			avg,
+			top: top
+				? {
+						name: top.name,
+						director: top.tmdb?.director ?? null,
+						rating: top.rating,
+						poster: top.tmdb?.poster ?? null,
+						uri: top.uri
+					}
+				: null
+		};
+	});
+
+	return { decadedist, releaseyears, seasonal, erahighlights, yearhighlights };
 }
