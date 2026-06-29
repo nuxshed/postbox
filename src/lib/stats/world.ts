@@ -2,8 +2,8 @@ import type { dataset, enrichedfilm } from '$lib/pipeline/types';
 import { displaycountry, TMDB_LANG } from '$lib/utils';
 
 export type worldstats = {
-	countrydist: { name: string; count: number; avg: number; liked: number }[];
-	langdist: { code: string; name: string; count: number; avg: number; liked: number }[];
+	countrydist: { name: string; count: number; avg: number; liked: number; ratingsCount: number }[];
+	langdist: { code: string; name: string; count: number; avg: number; liked: number; ratingsCount: number }[];
 	countryhighlights: {
 		country: string;
 		count: number;
@@ -37,7 +37,8 @@ export function computeworld(
 	data: dataset,
 	minthreshold = 20,
 	countryMetric?: 'rating' | 'liked' | 'count',
-	langMetric?: 'rating' | 'liked' | 'count'
+	langMetric?: 'rating' | 'liked' | 'count',
+	rangeKind?: string
 ): worldstats {
 	const { films, diary } = data;
 
@@ -73,6 +74,7 @@ export function computeworld(
 			name,
 			count,
 			liked,
+			ratingsCount: ratings.length,
 			avg:
 				ratings.length > 0
 					? Math.round((ratings.reduce((a, b) => a + b, 0) / ratings.length) * 100) / 100
@@ -86,6 +88,7 @@ export function computeworld(
 			name,
 			count,
 			liked,
+			ratingsCount: ratings.length,
 			avg:
 				ratings.length > 0
 					? Math.round((ratings.reduce((a, b) => a + b, 0) / ratings.length) * 100) / 100
@@ -147,7 +150,10 @@ export function computeworld(
 	};
 
 	// 1. Calculate Country Highlights
-	const eligibleCountryRated = countrydist.filter((c) => c.avg > 0);
+	const eligibleCountryRated = countrydist.filter((c) => {
+		const minRated = rangeKind === 'all' ? 3 : 1;
+		return c.avg > 0 && c.ratingsCount >= minRated;
+	});
 	const eligibleCountryLiked = countrydist.filter((c) => c.liked > 0);
 	let activeCountryMetric = countryMetric;
 	if (!activeCountryMetric) {
@@ -199,7 +205,10 @@ export function computeworld(
 	});
 
 	// 2. Calculate Language Highlights
-	const eligibleLangRated = langdist.filter((l) => l.avg > 0);
+	const eligibleLangRated = langdist.filter((l) => {
+		const minRated = rangeKind === 'all' ? 3 : 1;
+		return l.avg > 0 && l.ratingsCount >= minRated;
+	});
 	const eligibleLangLiked = langdist.filter((l) => l.liked > 0);
 	let activeLangMetric = langMetric;
 	if (!activeLangMetric) {

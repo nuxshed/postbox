@@ -4,13 +4,14 @@
 	import { feature, mesh } from 'topojson-client';
 	import type { Topology, Objects } from 'topojson-specification';
 
-	type CountryEntry = { name: string; count: number; avg: number; liked: number };
+	type CountryEntry = { name: string; count: number; avg: number; liked: number; ratingsCount?: number };
 	type Props = {
 		data: CountryEntry[];
 		metric: string;
+		rangeKind?: string;
 		oncountryclick?: (name: string) => void;
 	};
-	let { data, metric, oncountryclick }: Props = $props();
+	let { data, metric, rangeKind = 'all', oncountryclick }: Props = $props();
 
 	// ISO 3166-1 numeric → display name (must match world.ts countryname() output)
 	const ISO: Record<number, string> = {
@@ -149,16 +150,16 @@
 	const maxcount = $derived(Math.max(...data.map((d) => d.count), 1));
 	const maxliked = $derived(Math.max(...data.map((d) => d.liked ?? 0), 1));
 
-	const maxavg = $derived(
-		data.some((d) => d.avg > 0)
-			? Math.max(...data.filter((d) => d.avg > 0).map((d) => d.avg))
-			: 5
-	);
-	const minavg = $derived(
-		data.some((d) => d.avg > 0)
-			? Math.min(...data.filter((d) => d.avg > 0).map((d) => d.avg))
-			: 1
-	);
+	const maxavg = $derived.by(() => {
+		const minRated = rangeKind === 'all' ? 3 : 1;
+		const eligible = data.filter((d) => d.avg > 0 && ((d as any).ratingsCount ?? 0) >= minRated);
+		return eligible.length > 0 ? Math.max(...eligible.map((d) => d.avg)) : 5;
+	});
+	const minavg = $derived.by(() => {
+		const minRated = rangeKind === 'all' ? 3 : 1;
+		const eligible = data.filter((d) => d.avg > 0 && ((d as any).ratingsCount ?? 0) >= minRated);
+		return eligible.length > 0 ? Math.min(...eligible.map((d) => d.avg)) : 1;
+	});
 
 	const hoveredCountry = $derived(
 		hoveredCountryId !== null ? countries.find((c) => c.id === hoveredCountryId) : null
@@ -171,6 +172,7 @@
 
 	const tooltip = $derived.by(() => {
 		if (!hoveredCountry || !hoveredEntry || !hoveredCountry.centroid) return null;
+		if (getopacity(hoveredCountry.id) === null) return null;
 		return {
 			name: hoveredEntry.name,
 			count: hoveredEntry.count,
@@ -184,6 +186,11 @@
 		const name = ISO[id];
 		const entry = name ? datamap.get(name) : null;
 		if (!entry) return null;
+
+		if (metric === 'rating') {
+			const minRated = rangeKind === 'all' ? 3 : 1;
+			if (((entry as any).ratingsCount ?? 0) < minRated) return null;
+		}
 
 		const val = metric === 'liked' ? (entry.liked ?? 0) : metric === 'count' ? entry.count : (entry.avg ?? 0);
 		if (val === 0) return null;

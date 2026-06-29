@@ -10,6 +10,7 @@
 	import Card from '$lib/components/card.svelte';
 	import ListExpansion from '$lib/components/listexpansion.svelte';
 	import HighlightsCard from '$lib/components/highlightscard.svelte';
+	import Infotip from '$lib/components/infotip.svelte';
 
 	const dsctx = getContext<{ data: dataset | null }>('dataset');
 	const rangectx = getContext<{ kind: string }>('range');
@@ -18,21 +19,18 @@
 	);
 
 	let mapMetric = $state('count');
-	let countryMetric = $state('count');
-	let langMetric = $state('count');
-	let countryHighlightMetric = $state<'rating' | 'liked' | 'count'>('rating');
-	let langHighlightMetric = $state<'rating' | 'liked' | 'count'>('rating');
+	let countryMetric = $state<'rating' | 'liked' | 'count'>('count');
+	let langMetric = $state<'rating' | 'liked' | 'count'>('count');
 
 	let countryLimit = $state(10);
 	let langLimit = $state(10);
 
 	const hasratings = $derived(dsctx.data?.films.some((f) => f.rating !== null) ?? false);
 	const haslikes = $derived(dsctx.data?.films.some((f) => f.liked) ?? false);
-	const rawstats = $derived(dsctx.data ? computeworld(dsctx.data, genreminthreshold) : null);
 
 	const stats = $derived(
 		dsctx.data
-			? computeworld(dsctx.data, genreminthreshold, countryHighlightMetric, langHighlightMetric)
+			? computeworld(dsctx.data, genreminthreshold, countryMetric, langMetric, rangectx.kind)
 			: null
 	);
 
@@ -47,67 +45,18 @@
 		return opts;
 	});
 
-	const countryHighlightOpts = $derived.by(() => {
-		const opts = [{ id: 'count', label: 'Watched' }];
-		if (haslikes) {
-			opts.push({ id: 'liked', label: 'Liked' });
-		}
-		const hasRatedCountries = rawstats && rawstats.countrydist.some((c) => c.avg > 0);
-		if (hasratings && hasRatedCountries) {
-			opts.push({ id: 'rating', label: 'Rating' });
-		}
-		return opts;
-	});
-
-	const langHighlightOpts = $derived.by(() => {
-		const opts = [{ id: 'count', label: 'Watched' }];
-		if (haslikes) {
-			opts.push({ id: 'liked', label: 'Liked' });
-		}
-		const hasRatedLangs = rawstats && rawstats.langdist.some((l) => l.avg > 0);
-		if (hasratings && hasRatedLangs) {
-			opts.push({ id: 'rating', label: 'Rating' });
-		}
-		return opts;
-	});
-
-	$effect(() => {
-		if (dsctx.data) {
-			if (countryHighlightOpts.length > 0 && !countryHighlightOpts.some((o) => o.id === countryHighlightMetric)) {
-				const hasRating = countryHighlightOpts.some((o) => o.id === 'rating');
-				const hasLiked = countryHighlightOpts.some((o) => o.id === 'liked');
-				if (hasRating) {
-					countryHighlightMetric = 'rating';
-				} else if (hasLiked) {
-					countryHighlightMetric = 'liked';
-				} else {
-					countryHighlightMetric = 'count';
-				}
-			}
-			if (langHighlightOpts.length > 0 && !langHighlightOpts.some((o) => o.id === langHighlightMetric)) {
-				const hasRating = langHighlightOpts.some((o) => o.id === 'rating');
-				const hasLiked = langHighlightOpts.some((o) => o.id === 'liked');
-				if (hasRating) {
-					langHighlightMetric = 'rating';
-				} else if (hasLiked) {
-					langHighlightMetric = 'liked';
-				} else {
-					langHighlightMetric = 'count';
-				}
-			}
-		}
-	});
-
 	$effect(() => {
 		if (toggleopts.length > 0) {
 			if (!toggleopts.some((o) => o.id === mapMetric)) {
 				mapMetric = toggleopts[0].id;
 			}
 			if (!toggleopts.some((o) => o.id === countryMetric)) {
-				countryMetric = toggleopts[0].id;
+				const hasRating = toggleopts.some((o) => o.id === 'rating');
+				countryMetric = hasRating ? 'rating' : (toggleopts[0].id as any);
 			}
 			if (!toggleopts.some((o) => o.id === langMetric)) {
-				langMetric = toggleopts[0].id;
+				const hasRating = toggleopts.some((o) => o.id === 'rating');
+				langMetric = hasRating ? 'rating' : (toggleopts[0].id as any);
 			}
 		}
 	});
@@ -118,7 +67,13 @@
 				? stats.countrydist.slice().sort((a, b) => b.liked - a.liked)
 				: countryMetric === 'count'
 					? stats.countrydist.slice().sort((a, b) => b.count - a.count)
-					: stats.countrydist.slice().sort((a, b) => b.avg - a.avg)
+					: stats.countrydist
+							.filter((c) => {
+								const minRated = rangectx.kind === 'all' ? 3 : 1;
+								return c.ratingsCount >= minRated;
+							})
+							.slice()
+							.sort((a, b) => b.avg - a.avg || b.count - a.count)
 			: []
 	);
 
@@ -137,7 +92,13 @@
 				? stats.langdist.slice().sort((a, b) => b.liked - a.liked)
 				: langMetric === 'count'
 					? stats.langdist.slice().sort((a, b) => b.count - a.count)
-					: stats.langdist.slice().sort((a, b) => b.avg - a.avg)
+					: stats.langdist
+							.filter((l) => {
+								const minRated = rangectx.kind === 'all' ? 3 : 1;
+								return l.ratingsCount >= minRated;
+							})
+							.slice()
+							.sort((a, b) => b.avg - a.avg || b.count - a.count)
 			: []
 	);
 
@@ -172,6 +133,7 @@
 			<WorldMap
 				data={stats.countrydist}
 				metric={mapMetric}
+				rangeKind={rangectx.kind}
 				oncountryclick={(name) => goto(`${base}/films?country=${encodeURIComponent(name)}`)}
 			/>
 		</Card>
@@ -189,9 +151,12 @@
 					liked: ch.liked,
 					top: ch.top
 				}))}
-				metric={countryHighlightMetric}
-				metricOptions={countryHighlightOpts}
-				onchange={(v: 'rating' | 'liked' | 'count') => (countryHighlightMetric = v)}
+				metric={countryMetric}
+				metricOptions={toggleopts}
+				onchange={(v: 'rating' | 'liked' | 'count') => {
+					countryMetric = v;
+					countryLimit = 10;
+				}}
 			/>
 			<HighlightsCard
 				title="Language highlights"
@@ -204,9 +169,12 @@
 					liked: lh.liked,
 					top: lh.top
 				}))}
-				metric={langHighlightMetric}
-				metricOptions={langHighlightOpts}
-				onchange={(v: 'rating' | 'liked' | 'count') => (langHighlightMetric = v)}
+				metric={langMetric}
+				metricOptions={toggleopts}
+				onchange={(v: 'rating' | 'liked' | 'count') => {
+					langMetric = v;
+					langLimit = 10;
+				}}
 				accent="var(--accent-blue)"
 			/>
 		</div>
@@ -215,14 +183,20 @@
 		<div class="grid grid-cols-2 gap-[18px] items-start">
 			<Card title="By country">
 				{#snippet actions()}
-					<MetricToggle
-						value={countryMetric}
-						onchange={(v) => {
-							countryMetric = v;
-							countryLimit = 10;
-						}}
-						options={toggleopts}
-					/>
+					<div class="flex items-center gap-2">
+						{#if countryMetric === 'rating'}
+							{@const minRated = rangectx.kind === 'all' ? 3 : 1}
+							<Infotip text="Only countries with at least {minRated} rated {minRated === 1 ? 'film' : 'films'} are included." />
+						{/if}
+						<MetricToggle
+							value={countryMetric}
+							onchange={(v) => {
+								countryMetric = v as any;
+								countryLimit = 10;
+							}}
+							options={toggleopts}
+						/>
+					</div>
 				{/snippet}
 				<BarList
 					rows={countryrows}
@@ -236,14 +210,20 @@
 
 			<Card title="By language">
 				{#snippet actions()}
-					<MetricToggle
-						value={langMetric}
-						onchange={(v) => {
-							langMetric = v;
-							langLimit = 10;
-						}}
-						options={toggleopts}
-					/>
+					<div class="flex items-center gap-2">
+						{#if langMetric === 'rating'}
+							{@const minRated = rangectx.kind === 'all' ? 3 : 1}
+							<Infotip text="Only languages with at least {minRated} rated {minRated === 1 ? 'film' : 'films'} are included." />
+						{/if}
+						<MetricToggle
+							value={langMetric}
+							onchange={(v) => {
+								langMetric = v as any;
+								langLimit = 10;
+							}}
+							options={toggleopts}
+						/>
+					</div>
 				{/snippet}
 				<BarList
 					rows={langrows}
