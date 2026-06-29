@@ -198,7 +198,7 @@ export function computeworld(
 	});
 
 	// 2. Calculate Language Highlights
-	const eligibleLangRated = langdist.filter((l) => l.count >= minthreshold && l.avg > 0);
+	const eligibleLangRated = langdist.filter((l) => l.avg > 0);
 	const eligibleLangLiked = langdist.filter((l) => l.liked > 0);
 	let activeLangMetric = langMetric;
 	if (!activeLangMetric) {
