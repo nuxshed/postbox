@@ -132,6 +132,7 @@
 
 	type CountryShape = {
 		id: number;
+		key: string;
 		path: string;
 		centroid: [number, number];
 		name: string | null;
@@ -142,10 +143,7 @@
 
 	let countries = $state<CountryShape[]>([]);
 	let borderpath = $state('');
-	let tooltip = $state<{ name: string; count: number; avg: number; x: number; y: number } | null>(
-		null
-	);
-	let hovered = $state<number | null>(null);
+	let hoveredCountryId = $state<number | null>(null);
 
 	const datamap = $derived(new Map(data.map((d) => [d.name, d])));
 	const maxcount = $derived(Math.max(...data.map((d) => d.count), 1));
@@ -161,6 +159,26 @@
 			? Math.min(...data.filter((d) => d.avg > 0).map((d) => d.avg))
 			: 1
 	);
+
+	const hoveredCountry = $derived(
+		hoveredCountryId !== null ? countries.find((c) => c.id === hoveredCountryId) : null
+	);
+	const hoveredEntry = $derived(
+		hoveredCountry && ISO[hoveredCountry.id]
+			? datamap.get(ISO[hoveredCountry.id]!)
+			: null
+	);
+
+	const tooltip = $derived.by(() => {
+		if (!hoveredCountry || !hoveredEntry || !hoveredCountry.centroid) return null;
+		return {
+			name: hoveredEntry.name,
+			count: hoveredEntry.count,
+			avg: hoveredEntry.avg,
+			x: (hoveredCountry.centroid[0] / W) * 100,
+			y: (hoveredCountry.centroid[1] / H) * 100
+		};
+	});
 
 	function getopacity(id: number): number | null {
 		const name = ISO[id];
@@ -182,7 +200,7 @@
 	}
 
 	onMount(async () => {
-		const world = await fetch('/countries-110m.json').then((r) => r.json());
+		const world = await fetch('/countries-50m.json').then((r) => r.json());
 
 		const proj = geoNaturalEarth1().fitSize([W, H], { type: 'Sphere' } as any);
 		const pathgen = geoPath().projection(proj);
@@ -195,11 +213,12 @@
 		);
 
 		let fallbackId = -1;
-		countries = (feats as any).features.map((f: any) => {
+		countries = (feats as any).features.map((f: any, idx: number) => {
 			const rawId = f.id !== undefined ? +f.id : NaN;
 			const id = isNaN(rawId) ? fallbackId-- : rawId;
 			return {
 				id,
+				key: `${id}-${idx}`,
 				path: pathgen(f) ?? '',
 				centroid: pathgen.centroid(f),
 				name: ISO[id] ?? null
@@ -209,7 +228,7 @@
 	});
 </script>
 
-<div style="position: relative;">
+<div style="position: relative; overflow: hidden; user-select: none;">
 	<svg
 		viewBox="0 0 {W} {H}"
 		style="width: 100%; height: auto; display: block;"
@@ -218,44 +237,34 @@
 	>
 		<rect width={W} height={H} fill="rgba(255,255,255,0.015)" />
 
-		{#each countries as c (c.id)}
-			{@const op = hovered === c.id && getopacity(c.id) !== null ? 1 : getopacity(c.id)}
-			<path
-				role="presentation"
-				d={c.path}
-				fill={op !== null ? 'var(--accent)' : 'rgba(255,255,255,0.05)'}
-				fill-opacity={op !== null ? op : 0.07}
-				stroke={hovered === c.id ? 'rgba(255,255,255,0.28)' : 'rgba(255,255,255,0.09)'}
-				stroke-width={hovered === c.id ? 1 : 0.5}
-				style={getopacity(c.id) !== null ? 'cursor: pointer;' : ''}
-				onclick={() => {
-					const name = ISO[c.id];
-					if (name && datamap.has(name) && oncountryclick) oncountryclick(name);
-				}}
-				onmouseenter={() => {
-					hovered = c.id;
-					const name = ISO[c.id];
-					const entry = name ? datamap.get(name) : null;
-					if (entry && c.centroid) {
-						tooltip = {
-							name: entry.name,
-							count: entry.count,
-							avg: entry.avg,
-							x: (c.centroid[0] / W) * 100,
-							y: (c.centroid[1] / H) * 100
-						};
-					}
-				}}
-				onmouseleave={() => {
-					hovered = null;
-					tooltip = null;
-				}}
-			/>
-		{/each}
+		<g>
+			{#each countries as c (c.key)}
+				{@const op = hoveredCountryId === c.id && getopacity(c.id) !== null ? 1 : getopacity(c.id)}
+				<path
+					role="presentation"
+					d={c.path}
+					fill={op !== null ? 'var(--accent)' : 'rgba(255,255,255,0.05)'}
+					fill-opacity={op !== null ? op : 0.07}
+					stroke={hoveredCountryId === c.id ? 'rgba(255,255,255,0.35)' : 'rgba(255,255,255,0.09)'}
+					stroke-width={hoveredCountryId === c.id ? 1.0 : 0.5}
+					style={getopacity(c.id) !== null ? 'cursor: pointer;' : ''}
+					onclick={() => {
+						const name = ISO[c.id];
+						if (name && datamap.has(name) && oncountryclick) oncountryclick(name);
+					}}
+					onmouseenter={() => {
+						hoveredCountryId = c.id;
+					}}
+					onmouseleave={() => {
+						hoveredCountryId = null;
+					}}
+				/>
+			{/each}
 
-		{#if borderpath}
-			<path d={borderpath} fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="0.5" />
-		{/if}
+			{#if borderpath}
+				<path d={borderpath} fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="0.5" />
+			{/if}
+		</g>
 	</svg>
 
 	{#if tooltip}
