@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { getContext } from 'svelte';
-	import type { dataset } from '$lib/pipeline/types';
+	import type { dataset, enrichedfilm } from '$lib/pipeline/types';
 	import { computeactivity, weeksofyear } from '$lib/stats/activity';
-	import { filmslug } from '$lib/utils';
+	import { filmslug, tmdbposter } from '$lib/utils';
 	import { base } from '$app/paths';
 	import BarList from '$lib/components/barlist.svelte';
 	import ColumnChart from '$lib/components/columnchart.svelte';
@@ -48,6 +48,82 @@
 
 	let weekmetric = $state('count');
 	let yearmetric = $state('count');
+	let hoveredFilmUri = $state<string | null>(null);
+
+	const top7films = $derived.by(() => {
+		if (!dsctx.data) return [];
+		const yearStr = String(curyear);
+		const favSet = new Set(dsctx.data.profile?.favoriteFilms ?? []);
+
+		const yearEntries = dsctx.data.diary.filter((e) => {
+			const d = (e.watcheddate || e.date)?.slice(0, 10);
+			return d && d.slice(0, 4) === yearStr;
+		});
+
+		if (yearEntries.length === 0) return [];
+
+		const filmbykey = new Map(dsctx.data.films.map((f) => [`${f.name}|${f.year}`, f]));
+		const uniqueFilmKeys = new Set<string>();
+		for (const e of yearEntries) {
+			uniqueFilmKeys.add(`${e.name}|${e.year}`);
+		}
+		
+		const candidates: enrichedfilm[] = [];
+		for (const key of uniqueFilmKeys) {
+			const f = filmbykey.get(key);
+			if (f) candidates.push(f);
+		}
+
+		const diarycounts = new Map<string, { count: number; hasfirst: boolean }>();
+		const maxDateMap = new Map<string, string>();
+
+		for (const e of dsctx.data.diary) {
+			const k = `${e.name}|${e.year}`;
+			if (!diarycounts.has(k)) diarycounts.set(k, { count: 0, hasfirst: false });
+			const entry = diarycounts.get(k)!;
+			entry.count++;
+			if (!e.rewatch) entry.hasfirst = true;
+
+			const dateVal = e.watcheddate || e.date;
+			if (dateVal) {
+				const prevMax = maxDateMap.get(k) ?? '';
+				if (dateVal > prevMax) {
+					maxDateMap.set(k, dateVal);
+				}
+			}
+		}
+
+		const getRewatchTimes = (k: string) => {
+			const entry = diarycounts.get(k);
+			if (!entry) return 1;
+			return entry.hasfirst ? entry.count : entry.count + 1;
+		};
+
+		const getLatestWatchDate = (f: enrichedfilm) => {
+			const k = `${f.name}|${f.year}`;
+			return maxDateMap.get(k) || f.lastwatched || f.firstwatched || '';
+		};
+
+		candidates.sort((a, b) => {
+			const rA = a.rating ?? 0;
+			const rB = b.rating ?? 0;
+			if (rB !== rA) return rB - rA;
+
+			const favA = favSet.has(a.uri) ? 1 : 0;
+			const favB = favSet.has(b.uri) ? 1 : 0;
+			if (favB !== favA) return favB - favA;
+
+			const rwA = getRewatchTimes(`${a.name}|${a.year}`);
+			const rwB = getRewatchTimes(`${b.name}|${b.year}`);
+			if (rwB !== rwA) return rwB - rwA;
+
+			const dateA = getLatestWatchDate(a);
+			const dateB = getLatestWatchDate(b);
+			return dateB.localeCompare(dateA);
+		});
+
+		return candidates.slice(0, 7);
+	});
 
 	const weekrows = $derived(weeks.map((w) => {
 		const val = weekmetric === 'liked' ? w.liked : weekmetric === 'rating' ? w.avg : w.count;
@@ -169,6 +245,78 @@
 				valuekey="value"
 				format={(v) => weekmetric === 'rating' ? v.toFixed(2) : v.toLocaleString('en-US')}
 			/>
+		</Card>
+
+		<!-- top 7 films of the year -->
+		<Card title="Top films · {curyear}">
+			{#snippet actions()}
+				<Infotip text="<strong style='color: var(--text); font-weight: bold; display: block; margin-bottom: 4px;'>Selection priority</strong>Films are ranked by highest rating. Ties are broken by favourites, then rewatch count, and finally recency." />
+			{/snippet}
+
+			{#if top7films.length === 0}
+				<div class="py-8 font-mono text-[13px] text-center" style="color: var(--text-dim);">
+					No films watched in {curyear}
+				</div>
+			{:else}
+				<div
+					class="grid gap-[14px]"
+					style="grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));"
+				>
+					{#each top7films as item (item.uri)}
+						<div
+							class="flex flex-col p-3.5 rounded-[10px] border border-[var(--border)] gap-2.5 transition-colors duration-200"
+							style="background: {hoveredFilmUri === item.uri ? 'color-mix(in oklab, var(--text) 4%, var(--bg-1))' : 'var(--bg-1)'};"
+						>
+							<a
+								href="{base}/films/{filmslug(item.uri)}"
+								class="group flex flex-col gap-2"
+								onmouseenter={() => (hoveredFilmUri = item.uri)}
+								onmouseleave={() => (hoveredFilmUri = null)}
+							>
+								<div
+									class="relative overflow-hidden rounded-[8px] border border-[var(--border)] flex flex-col"
+									style="aspect-ratio: 2/3; background: var(--bg-card);"
+								>
+									{#if tmdbposter(item.tmdb?.poster)}
+										<img
+											src={tmdbposter(item.tmdb?.poster)}
+											alt={item.name}
+											class="w-full h-full object-cover"
+											loading="lazy"
+										/>
+									{:else}
+										<div class="flex-1 flex items-end p-3">
+											<span
+												class="font-display font-semibold text-[12px] leading-tight"
+												style="color: var(--text-muted);"
+											>
+												{item.name}
+											</span>
+										</div>
+									{/if}
+								</div>
+								<div>
+									<div
+										class="text-[12px] font-medium leading-tight truncate group-hover:text-[var(--accent)] transition-colors"
+										title={item.name}
+									>
+										{item.name}
+									</div>
+									{#if item.tmdb?.director}
+										<div
+											class="text-[11px] mt-0.5 truncate"
+											style="color: var(--text-dim);"
+											title={item.tmdb.director}
+										>
+											by {item.tmdb.director}
+										</div>
+									{/if}
+								</div>
+							</a>
+						</div>
+					{/each}
+				</div>
+			{/if}
 		</Card>
 
 		<!-- rewatch + per-year -->
