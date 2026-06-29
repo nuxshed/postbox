@@ -64,7 +64,7 @@
 		if (haslikes) {
 			opts.push({ id: 'liked', label: 'Liked' });
 		}
-		const hasRatedLangs = rawstats && rawstats.langdist.some((l) => l.count >= genreminthreshold && l.avg > 0);
+		const hasRatedLangs = rawstats && rawstats.langdist.some((l) => l.avg > 0);
 		if (hasratings && hasRatedLangs) {
 			opts.push({ id: 'rating', label: 'Rating' });
 		}
@@ -183,6 +183,7 @@
 				cap="your favourite film from your top countries"
 				items={stats.countryhighlights.map((ch) => ({
 					label: ch.country,
+					href: `${base}/films?country=${encodeURIComponent(ch.country)}`,
 					count: ch.count,
 					avg: ch.avg,
 					liked: ch.liked,
@@ -197,6 +198,7 @@
 				cap="your favourite film from your top languages"
 				items={stats.langhighlights.map((lh) => ({
 					label: lh.language,
+					href: `${base}/films?language=${encodeURIComponent(lh.code)}`,
 					count: lh.count,
 					avg: lh.avg,
 					liked: lh.liked,
@@ -205,6 +207,7 @@
 				metric={langHighlightMetric}
 				metricOptions={langHighlightOpts}
 				onchange={(v: 'rating' | 'liked' | 'count') => (langHighlightMetric = v)}
+				accent="var(--accent-blue)"
 			/>
 		</div>
 

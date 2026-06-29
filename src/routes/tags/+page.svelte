@@ -180,12 +180,12 @@
 				<div class="text-[12.5px]" style="color: var(--text-muted);">across all tags</div>
 			</section>
 		</div>
-		<!-- tag highlights -->
 		<HighlightsCard
 			title="Tag highlights"
 			cap="your favourite film from your top tags"
 			items={stats.taghighlights.map((th) => ({
 				label: '#' + th.tag,
+				href: `${base}/films?tag=${encodeURIComponent(th.tag)}`,
 				count: th.count,
 				avg: th.avg,
 				liked: th.liked,

@@ -7,6 +7,7 @@
 
 	interface HighlightItem {
 		label: string;
+		href?: string;
 		count: number;
 		avg: string;
 		liked: number;
@@ -26,6 +27,7 @@
 		metric: 'rating' | 'liked' | 'count';
 		metricOptions: { id: string; label: string }[];
 		onchange: (v: 'rating' | 'liked' | 'count') => void;
+		accent?: string;
 	}
 
 	let {
@@ -34,7 +36,8 @@
 		items = [],
 		metric,
 		onchange,
-		metricOptions = []
+		metricOptions = [],
+		accent = 'var(--accent)'
 	}: Props = $props();
 
 	let hoveredLabel = $state<string | null>(null);
@@ -60,24 +63,49 @@
 					class="flex flex-col p-3.5 rounded-[10px] border border-[var(--border)] gap-2.5 transition-colors duration-200"
 					style="background: {hoveredLabel === item.label ? 'color-mix(in oklab, var(--text) 4%, var(--bg-1))' : 'var(--bg-1)'};"
 				>
-					<div class="flex items-baseline justify-between gap-1 overflow-hidden">
-						<span
-							class="font-mono text-[10px] tracking-[0.08em] uppercase truncate"
-							style="color: var(--text-dim);"
-							title={item.label}
+					{#if item.href}
+						<a
+							href={item.href}
+							class="header-link flex items-baseline justify-between gap-1 overflow-hidden cursor-pointer"
+							style="--hover-color: {accent};"
 						>
-							{item.label}
-						</span>
-						<span class="font-num text-[11px] shrink-0" style="color: var(--text-muted);">
-							{#if metric === 'rating'}
-								{item.avg}★
-							{:else if metric === 'liked'}
-								{item.liked} liked
-							{:else}
-								{item.count.toLocaleString()} film{item.count === 1 ? '' : 's'}
-							{/if}
-						</span>
-					</div>
+							<span
+								class="lbl font-mono text-[10px] tracking-[0.08em] uppercase truncate transition-colors duration-150"
+								style="color: var(--text-dim);"
+								title={item.label}
+							>
+								{item.label}
+							</span>
+							<span class="font-num text-[11px] shrink-0" style="color: var(--text-muted);">
+								{#if metric === 'rating'}
+									{item.avg}★
+								{:else if metric === 'liked'}
+									{item.liked} liked
+								{:else}
+									{item.count.toLocaleString()} film{item.count === 1 ? '' : 's'}
+								{/if}
+							</span>
+						</a>
+					{:else}
+						<div class="flex items-baseline justify-between gap-1 overflow-hidden">
+							<span
+								class="font-mono text-[10px] tracking-[0.08em] uppercase truncate"
+								style="color: var(--text-dim);"
+								title={item.label}
+							>
+								{item.label}
+							</span>
+							<span class="font-num text-[11px] shrink-0" style="color: var(--text-muted);">
+								{#if metric === 'rating'}
+									{item.avg}★
+								{:else if metric === 'liked'}
+									{item.liked} liked
+								{:else}
+									{item.count.toLocaleString()} film{item.count === 1 ? '' : 's'}
+								{/if}
+							</span>
+						</div>
+					{/if}
 
 					{#if item.top}
 						<a
@@ -139,3 +167,9 @@
 		{/each}
 	</div>
 </Card>
+
+<style>
+	.header-link:hover .lbl {
+		color: var(--hover-color) !important;
+	}
+</style>

@@ -208,6 +208,7 @@
 			cap="your favourite film from your top genres"
 			items={stats.genrehighlights.map((gh) => ({
 				label: gh.genre,
+				href: `${base}/films?genre=${encodeURIComponent(gh.genre)}`,
 				count: gh.count,
 				avg: gh.avg,
 				liked: gh.liked,

@@ -18,6 +18,7 @@ export type worldstats = {
 		} | null;
 	}[];
 	langhighlights: {
+		code: string;
 		language: string;
 		count: number;
 		avg: string;
@@ -236,6 +237,7 @@ export function computeworld(
 		const sorted = rankFilms(candidates);
 		const top = sorted[0] ?? null;
 		return {
+			code: l.code,
 			language: l.name,
 			count: l.count,
 			avg: l.avg > 0 ? l.avg.toFixed(1) : '—',
