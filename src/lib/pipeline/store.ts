@@ -94,9 +94,14 @@ export async function migrateLegacyCache(): Promise<void> {
 	}
 }
 
-export function clearstored(): void {
+export function cleardataset(): void {
 	localStorage.removeItem(KEY);
+}
+
+export function clearstored(): void {
+	cleardataset();
 	clearFilmCache().catch((e) => console.error('Failed to clear IndexedDB:', e));
 }
+
 
 

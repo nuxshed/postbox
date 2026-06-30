@@ -22,6 +22,7 @@
 	--text: #e9eef2;
 	--text-muted: #8b9aa8;
 	--text-dim: #5f6e7b;
+	--text-destructive: #f08080;
 	--bar-track: rgba(255, 255, 255, 0.055);
 	--star-empty: rgba(255, 255, 255, 0.15);
 }
@@ -35,6 +36,7 @@ html[data-bg='black'] {
 	--text: #eef1f4;
 	--text-muted: #828f9b;
 	--text-dim: #586470;
+	--text-destructive: #f08080;
 }
 
 html[data-bg='warm'] {
@@ -47,6 +49,7 @@ html[data-bg='warm'] {
 	--text: #efe9df;
 	--text-muted: #a89a86;
 	--text-dim: #7a6e5c;
+	--text-destructive: #f08080;
 	--star-empty: rgba(255, 240, 220, 0.16);
 }
 

@@ -88,3 +88,52 @@ export type dataset = {
 	profile: profile | null;
 	enrichedat: number;
 };
+
+export type batchlog = {
+	batchIndex: number;
+	size: number;
+	latency: number;
+	films: { name: string; year: number; uri: string }[];
+	status: 'success' | 'error';
+	error?: string;
+};
+
+export type missdetail = {
+	name: string;
+	year: number;
+	uri: string;
+	status: 'resolved_movie' | 'resolved_tv' | 'resolved_override' | 'not_found' | 'failed';
+	tmdbid?: number;
+	error?: string;
+};
+
+export type pipelineoptions = {
+	bypassLocalStorage?: boolean;
+	bypassIndexedDb?: boolean;
+};
+
+export type processedfilm = {
+	name: string;
+	year: number;
+	uri: string;
+	isHit: boolean;
+	status: string;
+	tmdbid?: number;
+};
+
+export type pipelinetelemetry = {
+	stage: 'idle' | 'parsing_csv' | 'checking_cache' | 'enriching' | 'saving' | 'complete' | 'error';
+	totalTime: number;
+	csvParseTime: number;
+	cacheLookupTime: number;
+	enrichmentTime: number;
+	totalFilms: number;
+	cacheHits: number;
+	cacheMisses: number;
+	toEnrichCount: number;
+	averageQueryLatency: number;
+	batchLogs: batchlog[];
+	missDetails: missdetail[];
+	processedFilms: processedfilm[];
+};
+

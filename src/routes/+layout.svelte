@@ -7,7 +7,7 @@
 	import { page } from '$app/stores';
 	import { base } from '$app/paths';
 	import { onMount } from 'svelte';
-	import { loadstored, clearstored } from '$lib/pipeline/store';
+	import { loadstored, clearstored, cleardataset } from '$lib/pipeline/store';
 	import type { dataset } from '$lib/pipeline/types';
 	import { filterbyrange, type rangesel } from '$lib/stats/range';
 
@@ -31,9 +31,17 @@
 	}
 
 	function updatedata() {
-		clearstored();
+		cleardataset();
 		data = null;
 		dropdownopen = false;
+	}
+
+	function clearAllData() {
+		if (confirm('Are you sure you want to clear all data and delete the entire film cache?')) {
+			clearstored();
+			data = null;
+			dropdownopen = false;
+		}
 	}
 
 	setContext('dataset', {
@@ -193,11 +201,11 @@
 					></button>
 					<!-- dropdown -->
 					<div
-						class="absolute right-0 top-[calc(100%+8px)] z-50 rounded-[10px] border border-[var(--border)] py-1 min-w-[160px]"
+						class="absolute right-0 top-[calc(100%+8px)] z-50 rounded-[10px] border border-[var(--border)] py-1 min-w-[180px]"
 						style="background: var(--bg-card); box-shadow: 0 8px 24px rgba(0,0,0,0.35);"
 					>
 						<button
-							class="w-full flex items-center gap-[9px] px-[14px] py-[9px] text-[13px] transition-colors text-left"
+							class="w-full flex items-center gap-[9px] px-[14px] py-[9px] text-[13px] transition-colors text-left cursor-pointer"
 							style="color: var(--text-muted);"
 							onmouseenter={(e) => {
 								(e.currentTarget as HTMLElement).style.color = 'var(--text)';
@@ -222,6 +230,34 @@
 								<polyline points="1 4 1 10 7 10" /><path d="M3.51 15a9 9 0 1 0 .49-4.5" />
 							</svg>
 							Update data
+						</button>
+
+						<button
+							class="w-full flex items-center gap-[9px] px-[14px] py-[9px] text-[13px] transition-colors text-left cursor-pointer border-t border-[var(--border)]"
+							style="color: var(--text-muted);"
+							onmouseenter={(e) => {
+								(e.currentTarget as HTMLElement).style.color = 'var(--text)';
+								(e.currentTarget as HTMLElement).style.background = 'var(--bar-track)';
+							}}
+							onmouseleave={(e) => {
+								(e.currentTarget as HTMLElement).style.color = 'var(--text-muted)';
+								(e.currentTarget as HTMLElement).style.background = '';
+							}}
+							onclick={clearAllData}
+						>
+							<svg
+								width="13"
+								height="13"
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke-width="2"
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								stroke="var(--text-destructive)"
+							>
+								<path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M10 11v6M14 11v6" />
+							</svg>
+							<span style="color: var(--text-destructive);">Clear all & reset</span>
 						</button>
 					</div>
 				{/if}
