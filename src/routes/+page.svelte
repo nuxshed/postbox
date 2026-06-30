@@ -6,6 +6,7 @@
 	import MetricToggle from '$lib/components/metrictoggle.svelte';
 	import BarList from '$lib/components/barlist.svelte';
 	import ColumnChart from '$lib/components/columnchart.svelte';
+	import { persistedState } from '$lib/state.svelte';
 
 	const dsctx = getContext<{ data: dataset | null }>('dataset');
 	const dirctx = getContext<{ dir: string; setdir(v: string): void }>('ovdir');
@@ -13,10 +14,10 @@
 
 	const stats = $derived(dsctx.data ? computeoverview(dsctx.data) : null);
 
-	let dirmetric = $state('count');
-	let genremetric = $state('count');
-	let runtimemetric = $state('count');
-	let ratingmetric = $state('count');
+	const dirmetric = persistedState('postbox_metric_overview_dir', 'count');
+	const genremetric = persistedState('postbox_metric_overview_genre', 'count');
+	const runtimemetric = persistedState('postbox_metric_overview_runtime', 'count');
+	const ratingmetric = persistedState('postbox_metric_overview_rating', 'count');
 
 	const toggleopts = $derived.by(() => {
 		if (!stats) return [{ id: 'count', label: 'Watched' }];
@@ -38,11 +39,11 @@
 
 	$effect(() => {
 		if (toggleopts.length > 0) {
-			if (!toggleopts.some((o) => o.id === dirmetric)) dirmetric = toggleopts[0].id;
-			if (!toggleopts.some((o) => o.id === genremetric)) genremetric = toggleopts[0].id;
-			if (!toggleopts.some((o) => o.id === runtimemetric)) runtimemetric = toggleopts[0].id;
+			if (!toggleopts.some((o) => o.id === dirmetric.value)) dirmetric.value = toggleopts[0].id;
+			if (!toggleopts.some((o) => o.id === genremetric.value)) genremetric.value = toggleopts[0].id;
+			if (!toggleopts.some((o) => o.id === runtimemetric.value)) runtimemetric.value = toggleopts[0].id;
 		}
-		if (!ratingtoggleopts.some((o) => o.id === ratingmetric)) ratingmetric = 'count';
+		if (!ratingtoggleopts.some((o) => o.id === ratingmetric.value)) ratingmetric.value = 'count';
 	});
 
 	const dirminthreshold = $derived(
@@ -51,14 +52,14 @@
 
 	const dirrows = $derived.by(() => {
 		if (!stats) return [];
-		if (dirmetric === 'rating') {
+		if (dirmetric.value === 'rating') {
 			return stats.directors
 				.filter((d) => d.ratedfilms >= dirminthreshold)
 				.sort((a, b) => b.avg - a.avg)
 				.slice(0, 8)
 				.map((d) => ({ label: d.name, value: d.avg, href: `${base}/films?director=${encodeURIComponent(d.name)}` }));
 		}
-		if (dirmetric === 'liked') {
+		if (dirmetric.value === 'liked') {
 			return stats.directors
 				.slice()
 				.sort((a, b) => b.liked - a.liked)
@@ -70,14 +71,14 @@
 
 	const genrerows = $derived.by(() => {
 		if (!stats) return [];
-		if (genremetric === 'rating') {
+		if (genremetric.value === 'rating') {
 			return stats.genres
 				.filter((g) => g.avg > 0)
 				.sort((a, b) => b.avg - a.avg)
 				.slice(0, 8)
 				.map((g) => ({ label: g.name, value: g.avg, href: `${base}/films?genre=${encodeURIComponent(g.name)}` }));
 		}
-		if (genremetric === 'liked') {
+		if (genremetric.value === 'liked') {
 			return stats.genres
 				.slice()
 				.sort((a, b) => b.liked - a.liked)
@@ -94,19 +95,19 @@
 	const ratinghref = (d: { label: string }) => `${base}/films?rating=${d.label}`;
 	const runtimehref = (d: { label: string }) => `${base}/films?runtimebucket=${encodeURIComponent(d.label)}`;
 
-	const runtimechartkey = $derived(runtimemetric === 'rating' ? 'avg' : runtimemetric === 'liked' ? 'liked' : 'count');
-	const runtimefmt = $derived(runtimemetric === 'rating' ? (v: number) => v.toFixed(2) + ' ★' : undefined);
+	const runtimechartkey = $derived(runtimemetric.value === 'rating' ? 'avg' : runtimemetric.value === 'liked' ? 'liked' : 'count');
+	const runtimefmt = $derived(runtimemetric.value === 'rating' ? (v: number) => v.toFixed(2) + ' ★' : undefined);
 
 	const ratingstatnum = $derived(
 		stats
-			? ratingmetric === 'liked'
+			? ratingmetric.value === 'liked'
 				? stats.avgratliked.toFixed(2)
 				: stats.avgrating.toFixed(2)
 			: '—'
 	);
 	const ratingstatline = $derived(
 		stats
-			? ratingmetric === 'liked'
+			? ratingmetric.value === 'liked'
 				? `average rating across ${fmtnum(stats.totalliked)} liked films`
 				: `average rating across ${fmtnum(stats.totalfilms)} films`
 			: ''
@@ -114,18 +115,18 @@
 
 	const runtimestatnum = $derived(
 		stats
-			? runtimemetric === 'liked'
+			? runtimemetric.value === 'liked'
 				? stats.avgruntimeliked + ' min'
-				: runtimemetric === 'rating'
+				: runtimemetric.value === 'rating'
 					? stats.avgruntimefivestar + ' min'
 					: stats.avgruntime + ' min'
 			: '—'
 	);
 	const runtimestatline = $derived(
 		stats
-			? runtimemetric === 'liked'
+			? runtimemetric.value === 'liked'
 				? `avg runtime across ${fmtnum(stats.totalliked)} liked films`
-				: runtimemetric === 'rating'
+				: runtimemetric.value === 'rating'
 					? `avg runtime across ${fmtnum(stats.fivestartotal)} 5-star films`
 					: `typical runtime across all films`
 			: ''
@@ -235,7 +236,7 @@
 					>
 						Rating distribution
 					</h3>
-					<MetricToggle value={ratingmetric} onchange={(v) => (ratingmetric = v)} options={ratingtoggleopts} />
+					<MetricToggle value={ratingmetric.value} onchange={(v) => (ratingmetric.value = v)} options={ratingtoggleopts} />
 				</div>
 				<div class="flex-1 flex flex-col justify-end">
 					<ColumnChart
@@ -246,7 +247,7 @@
 						}))}
 						accent="var(--accent-blue)"
 						height={120}
-						valuekey={ratingmetric}
+						valuekey={ratingmetric.value}
 					/>
 					<div
 						class="flex items-baseline gap-[10px] mt-4 pt-[14px] border-t border-[var(--border)]"
@@ -270,7 +271,7 @@
 					>
 						Runtime preferences
 					</h3>
-					<MetricToggle value={runtimemetric} onchange={(v) => (runtimemetric = v)} options={toggleopts} />
+					<MetricToggle value={runtimemetric.value} onchange={(v) => (runtimemetric.value = v)} options={toggleopts} />
 				</div>
 				<div class="flex-1 flex flex-col justify-end">
 					<ColumnChart data={stats.runtimebuckets} accent="var(--accent-amber)" height={120} gethref={runtimehref} valuekey={runtimechartkey} format={runtimefmt} />
@@ -300,13 +301,13 @@
 					>
 						Directors
 					</div>
-					<MetricToggle value={dirmetric} onchange={(v) => (dirmetric = v)} options={toggleopts} />
+					<MetricToggle value={dirmetric.value} onchange={(v) => (dirmetric.value = v)} options={toggleopts} />
 				</div>
 				<BarList
 					rows={dirrows}
 					accent="var(--accent-green)"
 					showrank={true}
-					renderval={dirmetric === 'rating' ? ratingval : undefined}
+					renderval={dirmetric.value === 'rating' ? ratingval : undefined}
 				/>
 			</div>
 			<div
@@ -320,13 +321,13 @@
 					>
 						Genres
 					</div>
-					<MetricToggle value={genremetric} onchange={(v) => (genremetric = v)} options={toggleopts} />
+					<MetricToggle value={genremetric.value} onchange={(v) => (genremetric.value = v)} options={toggleopts} />
 				</div>
 				<BarList
 					rows={genrerows}
 					accent="var(--accent-blue)"
 					showrank={true}
-					renderval={genremetric === 'rating' ? ratingval : undefined}
+					renderval={genremetric.value === 'rating' ? ratingval : undefined}
 				/>
 			</div>
 		</div>
@@ -425,7 +426,7 @@
 				>
 					Rating distribution
 				</h3>
-				<MetricToggle value={ratingmetric} onchange={(v) => (ratingmetric = v)} options={ratingtoggleopts} />
+				<MetricToggle value={ratingmetric.value} onchange={(v) => (ratingmetric.value = v)} options={ratingtoggleopts} />
 			</div>
 			<div class="flex-1 flex flex-col justify-end">
 				<ColumnChart
@@ -437,7 +438,7 @@
 					accent="var(--accent-blue)"
 					height={120}
 					gethref={ratinghref}
-					valuekey={ratingmetric}
+					valuekey={ratingmetric.value}
 				/>
 				<div class="flex items-baseline gap-[10px] mt-4 pt-[14px] border-t border-[var(--border)]">
 					<span
@@ -460,7 +461,7 @@
 				>
 					Runtime preferences
 				</h3>
-				<MetricToggle value={runtimemetric} onchange={(v) => (runtimemetric = v)} options={toggleopts} />
+				<MetricToggle value={runtimemetric.value} onchange={(v) => (runtimemetric.value = v)} options={toggleopts} />
 			</div>
 			<div class="flex-1 flex flex-col justify-end">
 				<ColumnChart data={stats.runtimebuckets} accent="var(--accent-amber)" height={120} gethref={runtimehref} valuekey={runtimechartkey} format={runtimefmt} />
@@ -485,13 +486,13 @@
 				>
 					Directors
 				</div>
-				<MetricToggle value={dirmetric} onchange={(v) => (dirmetric = v)} options={toggleopts} />
+				<MetricToggle value={dirmetric.value} onchange={(v) => (dirmetric.value = v)} options={toggleopts} />
 			</div>
 			<BarList
 				rows={dirrows}
 				accent="var(--accent-green)"
 				showrank={true}
-				renderval={dirmetric === 'rating' ? ratingval : undefined}
+				renderval={dirmetric.value === 'rating' ? ratingval : undefined}
 			/>
 		</div>
 
@@ -506,13 +507,13 @@
 				>
 					Genres
 				</div>
-				<MetricToggle value={genremetric} onchange={(v) => (genremetric = v)} options={toggleopts} />
+				<MetricToggle value={genremetric.value} onchange={(v) => (genremetric.value = v)} options={toggleopts} />
 			</div>
 			<BarList
 				rows={genrerows}
 				accent="var(--accent-blue)"
 				showrank={true}
-				renderval={genremetric === 'rating' ? ratingval : undefined}
+				renderval={genremetric.value === 'rating' ? ratingval : undefined}
 			/>
 		</div>
 
@@ -637,7 +638,7 @@
 				>
 					Rating distribution
 				</h3>
-				<MetricToggle value={ratingmetric} onchange={(v) => (ratingmetric = v)} options={ratingtoggleopts} />
+				<MetricToggle value={ratingmetric.value} onchange={(v) => (ratingmetric.value = v)} options={ratingtoggleopts} />
 			</div>
 			<div class="flex-1 flex flex-col justify-end">
 				<ColumnChart
@@ -649,7 +650,7 @@
 					accent="var(--accent-blue)"
 					height={150}
 					gethref={ratinghref}
-					valuekey={ratingmetric}
+					valuekey={ratingmetric.value}
 				/>
 				<div class="flex items-baseline gap-[10px] mt-4 pt-[14px] border-t border-[var(--border)]">
 					<span
@@ -672,7 +673,7 @@
 				>
 					Runtime preferences
 				</h3>
-				<MetricToggle value={runtimemetric} onchange={(v) => (runtimemetric = v)} options={toggleopts} />
+				<MetricToggle value={runtimemetric.value} onchange={(v) => (runtimemetric.value = v)} options={toggleopts} />
 			</div>
 			<div class="flex-1 flex flex-col justify-end">
 				<ColumnChart data={stats.runtimebuckets} accent="var(--accent-amber)" height={150} gethref={runtimehref} valuekey={runtimechartkey} format={runtimefmt} />
@@ -697,13 +698,13 @@
 				>
 					Directors
 				</div>
-				<MetricToggle value={dirmetric} onchange={(v) => (dirmetric = v)} options={toggleopts} />
+				<MetricToggle value={dirmetric.value} onchange={(v) => (dirmetric.value = v)} options={toggleopts} />
 			</div>
 			<BarList
 				rows={dirrows}
 				accent="var(--accent-green)"
 				showrank={true}
-				renderval={dirmetric === 'rating' ? ratingval : undefined}
+				renderval={dirmetric.value === 'rating' ? ratingval : undefined}
 			/>
 		</div>
 	</div>

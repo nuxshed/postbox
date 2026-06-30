@@ -9,13 +9,14 @@
 	import Card from '$lib/components/card.svelte';
 	import IconStarFilled from '~icons/tabler/star-filled';
 	import Infotip from '$lib/components/infotip.svelte';
+	import { persistedState } from '$lib/state.svelte';
 
 	const dsctx = getContext<{ data: dataset | null }>('dataset');
 	const stats = $derived(dsctx.data ? computeera(dsctx.data) : null);
 
-	let decademetric = $state('count');
-	let seasonmetric = $state('count');
-	let yearmetric = $state('count');
+	const decademetric = persistedState('postbox_metric_era_decade', 'count');
+	const seasonmetric = persistedState('postbox_metric_era_season', 'count');
+	const yearmetric = persistedState('postbox_metric_era_year', 'count');
 	let hoveredDecade = $state<string | null>(null);
 	let hoveredYear = $state<string | null>(null);
 
@@ -34,9 +35,9 @@
 
 	$effect(() => {
 		if (toggleopts.length > 0) {
-			if (!toggleopts.some((o) => o.id === decademetric)) decademetric = toggleopts[0].id;
-			if (!toggleopts.some((o) => o.id === seasonmetric)) seasonmetric = toggleopts[0].id;
-			if (!toggleopts.some((o) => o.id === yearmetric)) yearmetric = toggleopts[0].id;
+			if (!toggleopts.some((o) => o.id === decademetric.value)) decademetric.value = toggleopts[0].id;
+			if (!toggleopts.some((o) => o.id === seasonmetric.value)) seasonmetric.value = toggleopts[0].id;
+			if (!toggleopts.some((o) => o.id === yearmetric.value)) yearmetric.value = toggleopts[0].id;
 		}
 	});
 
@@ -44,13 +45,13 @@
 		stats
 			? stats.decadedist.map((d) => ({
 					label: d.label,
-					value: decademetric === 'count' ? d.count : decademetric === 'liked' ? d.liked : d.avg,
+					value: decademetric.value === 'count' ? d.count : decademetric.value === 'liked' ? d.liked : d.avg,
 					title:
 						d.label +
 						': ' +
-						(decademetric === 'count'
+						(decademetric.value === 'count'
 							? d.count + ' films'
-							: decademetric === 'liked'
+							: decademetric.value === 'liked'
 								? d.liked + ' liked'
 								: d.avg.toFixed(2) + '★'),
 					decade: d.decade
@@ -61,8 +62,8 @@
 	const yearrows = $derived.by(() => {
 		if (!stats) return [];
 		return stats.releaseyears.map((y) => {
-			const val = yearmetric === 'liked' ? y.liked : yearmetric === 'rating' ? y.avg : y.count;
-			const valstr = yearmetric === 'rating' ? y.avg.toFixed(2) + '★' : val.toLocaleString('en-US');
+			const val = yearmetric.value === 'liked' ? y.liked : yearmetric.value === 'rating' ? y.avg : y.count;
+			const valstr = yearmetric.value === 'rating' ? y.avg.toFixed(2) + '★' : val.toLocaleString('en-US');
 			return { ...y, value: val, title: String(y.year) + ' · ' + valstr };
 		});
 	});
@@ -92,7 +93,7 @@
 		<!-- decade breakdown -->
 		<Card title="By decade">
 			{#snippet actions()}
-				<MetricToggle value={decademetric} onchange={(v) => (decademetric = v)} options={toggleopts} />
+				<MetricToggle value={decademetric.value} onchange={(v) => (decademetric.value = v)} options={toggleopts} />
 			{/snippet}
 			<ColumnChart
 				data={decaderows}
@@ -101,7 +102,7 @@
 				gap={10}
 				valuekey="value"
 				showvalues={true}
-				format={(v) => (decademetric === 'rating' ? v.toFixed(1) : v.toLocaleString('en-US'))}
+				format={(v) => (decademetric.value === 'rating' ? v.toFixed(1) : v.toLocaleString('en-US'))}
 				gethref={(d) => d.decade ? `${base}/films?decade=${d.decade}` : undefined}
 			/>
 		</Card>
@@ -110,7 +111,7 @@
 		<div class="grid gap-[18px]" style="grid-template-columns: 3fr 2fr;">
 			<Card title="Release year">
 				{#snippet actions()}
-					<MetricToggle value={yearmetric} onchange={(v) => (yearmetric = v)} options={toggleopts} />
+					<MetricToggle value={yearmetric.value} onchange={(v) => (yearmetric.value = v)} options={toggleopts} />
 				{/snippet}
 				<div class="flex-1 flex flex-col justify-end">
 					<ColumnChart
@@ -119,7 +120,7 @@
 						height={160}
 						gap={2}
 						valuekey="value"
-						format={(v) => yearmetric === 'rating' ? v.toFixed(2) + '★' : v.toLocaleString('en-US')}
+						format={(v) => yearmetric.value === 'rating' ? v.toFixed(2) + '★' : v.toLocaleString('en-US')}
 						gethref={(d) => d.year ? `${base}/films?year=${d.year}` : undefined}
 						axislabels={decadeaxislabels}
 					/>
@@ -128,19 +129,19 @@
 
 			<Card title="Seasonal patterns">
 				{#snippet actions()}
-					<MetricToggle value={seasonmetric} onchange={(v) => (seasonmetric = v)} options={toggleopts} />
+					<MetricToggle value={seasonmetric.value} onchange={(v) => (seasonmetric.value = v)} options={toggleopts} />
 				{/snippet}
 				<div class="flex-1 flex flex-col justify-end">
 					<ColumnChart
 						data={stats.seasonal.map((s) => ({
 							label: s.month.slice(0, 3),
-							value: seasonmetric === 'count' ? s.count : seasonmetric === 'liked' ? s.liked : s.avg,
+							value: seasonmetric.value === 'count' ? s.count : seasonmetric.value === 'liked' ? s.liked : s.avg,
 							title:
 								s.month +
 								': ' +
-								(seasonmetric === 'count'
+								(seasonmetric.value === 'count'
 									? s.count.toLocaleString() + ' films'
-									: seasonmetric === 'liked'
+									: seasonmetric.value === 'liked'
 										? s.liked + ' liked'
 										: s.avg.toFixed(2) + '★')
 						}))}
@@ -154,10 +155,10 @@
 						class="font-num font-bold text-[20px] tracking-[-0.02em]"
 						style="color: var(--accent-blue);"
 					>
-						{seasonmetric === 'count' ? seasonavgcount : seasonmetric === 'liked' ? stats.seasonal.reduce((a, s) => a + s.liked, 0) : seasonavgrating}
+						{seasonmetric.value === 'count' ? seasonavgcount : seasonmetric.value === 'liked' ? stats.seasonal.reduce((a, s) => a + s.liked, 0) : seasonavgrating}
 					</span>
 					<span class="text-[12px]" style="color: var(--text-muted);">
-						{seasonmetric === 'count' ? 'avg films per month' : seasonmetric === 'liked' ? 'total liked films logged' : 'avg rating across all months'}
+						{seasonmetric.value === 'count' ? 'avg films per month' : seasonmetric.value === 'liked' ? 'total liked films logged' : 'avg rating across all months'}
 					</span>
 				</div>
 			</Card>

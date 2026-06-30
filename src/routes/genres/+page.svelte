@@ -10,6 +10,7 @@
 	import MetricToggle from '$lib/components/metrictoggle.svelte';
 	import ListExpansion from '$lib/components/listexpansion.svelte';
 	import HighlightsCard from '$lib/components/highlightscard.svelte';
+	import { persistedState } from '$lib/state.svelte';
 
 	const dsctx = getContext<{ data: dataset | null }>('dataset');
 	const rangectx = getContext<{ kind: string }>('range');
@@ -20,14 +21,14 @@
 	const haslikes = $derived(dsctx.data?.films.some((f) => f.liked) ?? false);
 	const rawstats = $derived(dsctx.data ? computegenres(dsctx.data, genreminthreshold) : null);
 
-	let highlightmetric = $state<'rating' | 'liked' | 'count'>('rating');
-	let ratedmetric = $state('rating');
+	const highlightmetric = persistedState<'rating' | 'liked' | 'count'>('postbox_metric_genres_highlight', 'rating');
+	const ratedmetric = persistedState('postbox_metric_genres_rated', 'rating');
 	let countLimit = $state(10);
 	let ratedLimit = $state(10);
 
 	const stats = $derived(
 		dsctx.data
-			? computegenres(dsctx.data, genreminthreshold, highlightmetric)
+			? computegenres(dsctx.data, genreminthreshold, highlightmetric.value)
 			: null
 	);
 
@@ -45,15 +46,15 @@
 
 	$effect(() => {
 		if (dsctx.data && highlightopts.length > 0) {
-			if (!highlightopts.some((o) => o.id === highlightmetric)) {
+			if (!highlightopts.some((o) => o.id === highlightmetric.value)) {
 				const hasRating = highlightopts.some((o) => o.id === 'rating');
 				const hasLiked = highlightopts.some((o) => o.id === 'liked');
 				if (hasRating) {
-					highlightmetric = 'rating';
+					highlightmetric.value = 'rating';
 				} else if (hasLiked) {
-					highlightmetric = 'liked';
+					highlightmetric.value = 'liked';
 				} else {
-					highlightmetric = 'count';
+					highlightmetric.value = 'count';
 				}
 			}
 		}
@@ -61,9 +62,9 @@
 
 	$effect(() => {
 		if (dsctx.data && ratedopts.length > 0) {
-			const hasCurrent = ratedopts.some((o) => o.id === ratedmetric);
+			const hasCurrent = ratedopts.some((o) => o.id === ratedmetric.value);
 			if (!hasCurrent) {
-				ratedmetric = ratedopts[0].id;
+				ratedmetric.value = ratedopts[0].id;
 			}
 		}
 	});
@@ -113,11 +114,11 @@
 					}))
 			: []
 	);
-	const allactive = $derived(ratedmetric === 'liked' ? allliked : allrated);
+	const allactive = $derived(ratedmetric.value === 'liked' ? allliked : allrated);
 
 	const herorated = $derived.by(() => {
 		if (!stats) return null;
-		return ratedmetric === 'liked' ? stats.toplikedgenre : stats.topratedgenre;
+		return ratedmetric.value === 'liked' ? stats.toplikedgenre : stats.topratedgenre;
 	});
 </script>
 
@@ -179,10 +180,10 @@
 						class="font-mono text-[10.5px] tracking-[0.08em] uppercase"
 						style="color: var(--text-dim);"
 					>
-						{ratedmetric === 'liked' ? 'Most liked' : 'Highest rated'}
+						{ratedmetric.value === 'liked' ? 'Most liked' : 'Highest rated'}
 					</div>
 					{#if ratedopts.length > 1}
-						<MetricToggle value={ratedmetric} onchange={(v) => (ratedmetric = v)} options={ratedopts} />
+						<MetricToggle value={ratedmetric.value} onchange={(v) => (ratedmetric.value = v)} options={ratedopts} />
 					{/if}
 				</div>
 				{#if herorated}
@@ -196,7 +197,7 @@
 						{herorated.name}
 					</a>
 					<div class="text-[12.5px]" style="color: var(--text-muted);">
-						{ratedmetric === 'liked' ? herorated.liked + ' liked films' : herorated.avg.toFixed(2) + ' avg rating'}
+						{ratedmetric.value === 'liked' ? herorated.liked + ' liked films' : herorated.avg.toFixed(2) + ' avg rating'}
 					</div>
 				{/if}
 			</section>
@@ -214,9 +215,9 @@
 				liked: gh.liked,
 				top: gh.top
 			}))}
-			metric={highlightmetric}
+			metric={highlightmetric.value}
 			metricOptions={highlightopts}
-			onchange={(v: 'rating' | 'liked' | 'count') => (highlightmetric = v)}
+			onchange={(v: 'rating' | 'liked' | 'count') => (highlightmetric.value = v)}
 		/>
 
 		<!-- most watched + highest rated/liked -->
@@ -225,14 +226,14 @@
 				<BarList rows={allwatched.slice(0, countLimit)} accent="var(--accent-blue)" showrank={true} />
 				<ListExpansion total={allwatched.length} bind:limit={countLimit} />
 			</Card>
-			<Card title={ratedmetric === 'liked' ? 'Most liked' : 'Highest rated'}>
+			<Card title={ratedmetric.value === 'liked' ? 'Most liked' : 'Highest rated'}>
 				{#snippet actions()}
 					<div class="flex items-center gap-2">
-						{#if ratedmetric === 'rating'}
+						{#if ratedmetric.value === 'rating'}
 							<Infotip text="Only genres with at least {genreminthreshold} rated {genreminthreshold === 1 ? 'film' : 'films'} are included." />
 						{/if}
 						{#if ratedopts.length > 1}
-							<MetricToggle value={ratedmetric} onchange={(v) => (ratedmetric = v)} options={ratedopts} />
+							<MetricToggle value={ratedmetric.value} onchange={(v) => (ratedmetric.value = v)} options={ratedopts} />
 						{/if}
 					</div>
 				{/snippet}
@@ -240,7 +241,7 @@
 					rows={allactive.slice(0, ratedLimit)}
 					accent="var(--accent-amber)"
 					showrank={true}
-					format={ratedmetric === 'liked' ? (v) => v.toLocaleString('en-US') : (v) => v.toFixed(2)}
+					format={ratedmetric.value === 'liked' ? (v) => v.toLocaleString('en-US') : (v) => v.toFixed(2)}
 				/>
 				<ListExpansion total={allactive.length} bind:limit={ratedLimit} />
 			</Card>

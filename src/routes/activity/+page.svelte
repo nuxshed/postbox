@@ -10,6 +10,7 @@
 	import Card from '$lib/components/card.svelte';
 	import MetricToggle from '$lib/components/metrictoggle.svelte';
 	import Infotip from '$lib/components/infotip.svelte';
+	import { persistedState } from '$lib/state.svelte';
 
 	const dsctx = getContext<{ data: dataset | null }>('dataset');
 	const yearctrls = getContext<{ year: number; setyear: (y: number) => void }>('activityyear');
@@ -46,8 +47,8 @@
 		return opts;
 	});
 
-	let weekmetric = $state('count');
-	let yearmetric = $state('count');
+	const weekmetric = persistedState('postbox_metric_activity_week', 'count');
+	const yearmetric = persistedState('postbox_metric_activity_year', 'count');
 	let hoveredFilmUri = $state<string | null>(null);
 
 	const top7films = $derived.by(() => {
@@ -126,20 +127,20 @@
 	});
 
 	const weekrows = $derived(weeks.map((w) => {
-		const val = weekmetric === 'liked' ? w.liked : weekmetric === 'rating' ? w.avg : w.count;
-		const valstr = weekmetric === 'rating' ? val.toFixed(2) + '★' : val.toLocaleString('en-US');
+		const val = weekmetric.value === 'liked' ? w.liked : weekmetric.value === 'rating' ? w.avg : w.count;
+		const valstr = weekmetric.value === 'rating' ? val.toFixed(2) + '★' : val.toLocaleString('en-US');
 		return { ...w, value: val, title: w.datestr ? `Week of ${w.datestr} · ${valstr}` : '' };
 	}));
 
 	const yearrows = $derived.by(() => {
 		if (!stats) return [];
 		return stats.years.map((y) => {
-			const val = yearmetric === 'liked'
+			const val = yearmetric.value === 'liked'
 				? (stats.yearliked[String(y)] ?? 0)
-				: yearmetric === 'rating'
+				: yearmetric.value === 'rating'
 					? (stats.yearratingavg[String(y)] ?? 0)
 					: (stats.yeartotals[String(y)] ?? 0);
-			const valstr = yearmetric === 'rating' ? val.toFixed(2) + '★' : val.toLocaleString('en-US');
+			const valstr = yearmetric.value === 'rating' ? val.toFixed(2) + '★' : val.toLocaleString('en-US');
 			return { label: "'" + String(y).slice(2), value: val, title: `${y} · ${valstr}` };
 		});
 	});
@@ -235,7 +236,7 @@
 		<!-- films per week -->
 		<Card title="Films per week · {curyear}" cap="peak {bestweek.count} in one week">
 			{#snippet actions()}
-				<MetricToggle value={weekmetric} onchange={(v) => (weekmetric = v)} options={activitytoggleopts} />
+				<MetricToggle value={weekmetric.value} onchange={(v) => (weekmetric.value = v)} options={activitytoggleopts} />
 			{/snippet}
 			<ColumnChart
 				data={weekrows}
@@ -243,7 +244,7 @@
 				height={130}
 				gap={2}
 				valuekey="value"
-				format={(v) => weekmetric === 'rating' ? v.toFixed(2) : v.toLocaleString('en-US')}
+				format={(v) => weekmetric.value === 'rating' ? v.toFixed(2) : v.toLocaleString('en-US')}
 			/>
 		</Card>
 
@@ -371,7 +372,7 @@
 
 			<Card title="Films per year">
 				{#snippet actions()}
-					<MetricToggle value={yearmetric} onchange={(v) => (yearmetric = v)} options={activitytoggleopts} />
+					<MetricToggle value={yearmetric.value} onchange={(v) => (yearmetric.value = v)} options={activitytoggleopts} />
 				{/snippet}
 				<div class="flex-1 flex flex-col justify-end">
 					<ColumnChart
@@ -380,7 +381,7 @@
 						height={200}
 						valuekey="value"
 						showvalues={true}
-						format={(v) => yearmetric === 'rating' ? v.toFixed(2) : v.toLocaleString('en-US')}
+						format={(v) => yearmetric.value === 'rating' ? v.toFixed(2) : v.toLocaleString('en-US')}
 					/>
 				</div>
 			</Card>

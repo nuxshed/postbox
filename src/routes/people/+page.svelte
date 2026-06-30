@@ -8,6 +8,7 @@
 	import MetricToggle from '$lib/components/metrictoggle.svelte';
 	import IconStarFilled from '~icons/tabler/star-filled';
 	import ListExpansion from '$lib/components/listexpansion.svelte';
+	import { persistedState } from '$lib/state.svelte';
 
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
@@ -28,7 +29,7 @@
 	);
 	let countLimit = $state(10);
 	let ratedLimit = $state(10);
-	let ratedmetric = $state('rating');
+	const ratedmetric = persistedState('postbox_metric_people_rated', 'rating');
 
 	function settab(t: Tab) {
 		const params = new URLSearchParams($page.url.searchParams);
@@ -41,14 +42,14 @@
 		countLimit = 10;
 		ratedLimit = 10;
 		if (dsctx.data && ratedopts.length > 0) {
-			ratedmetric = ratedopts.some((o) => o.id === 'rating') ? 'rating' : 'liked';
+			ratedmetric.value = ratedopts.some((o) => o.id === 'rating') ? 'rating' : 'liked';
 		}
 	});
 	$effect(() => {
 		if (dsctx.data && ratedopts.length > 0) {
-			const hasCurrent = ratedopts.some((o) => o.id === ratedmetric);
+			const hasCurrent = ratedopts.some((o) => o.id === ratedmetric.value);
 			if (!hasCurrent) {
-				ratedmetric = ratedopts[0].id;
+				ratedmetric.value = ratedopts[0].id;
 			}
 		}
 	});
@@ -80,7 +81,7 @@
 	const byliked = $derived(allbyliked.slice(0, ratedLimit));
 
 	const heroa = $derived(allbycount[0] ?? null);
-	const herob = $derived(ratedmetric === 'liked' ? allbyliked[0] ?? null : allbyrating[0] ?? null);
+	const herob = $derived(ratedmetric.value === 'liked' ? allbyliked[0] ?? null : allbyrating[0] ?? null);
 
 	const maxcount = $derived(Math.max(...bycount.map((r) => r.watched), 1));
 	const maxrating = $derived(Math.max(...byrating.map((r) => r.avg), 1));
@@ -207,10 +208,10 @@
 						class="font-mono text-[10.5px] tracking-[0.08em] uppercase"
 						style="color: var(--text-dim);"
 					>
-						{ratedmetric === 'liked' ? 'Most liked' : 'Highest rated'}
+						{ratedmetric.value === 'liked' ? 'Most liked' : 'Highest rated'}
 					</div>
 					{#if ratedopts.length > 1}
-						<MetricToggle value={ratedmetric} onchange={(v) => (ratedmetric = v)} options={ratedopts} />
+						<MetricToggle value={ratedmetric.value} onchange={(v) => (ratedmetric.value = v)} options={ratedopts} />
 					{/if}
 				</div>
 				{#if herob}
@@ -241,7 +242,7 @@
 						</a>
 					</div>
 					<div class="text-[12.5px]" style="color: var(--text-muted);">
-						{ratedmetric === 'liked'
+						{ratedmetric.value === 'liked'
 							? herob.liked + ' liked film' + (herob.liked === 1 ? '' : 's')
 							: herob.avg.toFixed(2) + ' avg rating' + (herob.role ? ' · ' + herob.role : '')}
 					</div>
@@ -310,22 +311,22 @@
 				<ListExpansion total={allbycount.length} bind:limit={countLimit} />
 			</Card>
 
-			<Card title={ratedmetric === 'liked' ? 'Most liked' : 'Highest rated'}>
+			<Card title={ratedmetric.value === 'liked' ? 'Most liked' : 'Highest rated'}>
 				{#snippet actions()}
 					<div class="flex items-center gap-2">
-						{#if ratedmetric === 'rating'}
+						{#if ratedmetric.value === 'rating'}
 							<Infotip text={tiptext} />
 						{/if}
 						{#if ratedopts.length > 1}
-							<MetricToggle value={ratedmetric} onchange={(v) => (ratedmetric = v)} options={ratedopts} />
+							<MetricToggle value={ratedmetric.value} onchange={(v) => (ratedmetric.value = v)} options={ratedopts} />
 						{/if}
 					</div>
 				{/snippet}
-				{@const activelist = ratedmetric === 'liked' ? byliked : byrating}
-				{@const maxval = ratedmetric === 'liked' ? maxliked : maxrating}
+				{@const activelist = ratedmetric.value === 'liked' ? byliked : byrating}
+				{@const maxval = ratedmetric.value === 'liked' ? maxliked : maxrating}
 				<div class="flex flex-col gap-[9px]">
 					{#each activelist as person, i (person.name + '|' + i)}
-						{@const w = Math.max(2, ratedmetric === 'liked' ? (person.liked / maxval) * 100 : (person.avg / maxval) * 100)}
+						{@const w = Math.max(2, ratedmetric.value === 'liked' ? (person.liked / maxval) * 100 : (person.avg / maxval) * 100)}
 						<div
 							class="grid items-center gap-3"
 							style="grid-template-columns: auto 28px minmax(80px, 1fr) 1fr auto;"
@@ -375,7 +376,7 @@
 								class="font-mono text-[12.5px] font-bold min-w-[42px] flex items-center justify-end gap-0.5"
 								style="color: var(--text);"
 							>
-								{#if ratedmetric === 'liked'}
+								{#if ratedmetric.value === 'liked'}
 									{person.liked}
 								{:else}
 									{person.avg.toFixed(1)}
@@ -385,7 +386,7 @@
 						</div>
 					{/each}
 				</div>
-				{@const allactive = ratedmetric === 'liked' ? allbyliked : allbyrating}
+				{@const allactive = ratedmetric.value === 'liked' ? allbyliked : allbyrating}
 				<ListExpansion total={allactive.length} bind:limit={ratedLimit} />
 			</Card>
 		</div>

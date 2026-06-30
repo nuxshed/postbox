@@ -9,6 +9,7 @@
 	import IconStarFilled from '~icons/tabler/star-filled';
 	import ListExpansion from '$lib/components/listexpansion.svelte';
 	import HighlightsCard from '$lib/components/highlightscard.svelte';
+	import { persistedState } from '$lib/state.svelte';
 
 	const dsctx = getContext<{ data: dataset | null }>('dataset');
 	const rangectx = getContext<{ kind: string }>('range');
@@ -20,13 +21,13 @@
 	const haslikes = $derived(dsctx.data?.films.some((f) => f.liked) ?? false);
 	const rawstats = $derived(dsctx.data ? computetags(dsctx.data, tagminthreshold) : null);
 
-	let tagHighlightMetric = $state<'rating' | 'liked' | 'count'>('rating');
+	const tagHighlightMetric = persistedState<'rating' | 'liked' | 'count'>('postbox_metric_tags_highlight', 'rating');
 	let limit = $state(10);
-	let ratedmetric = $state('rating');
+	const ratedmetric = persistedState('postbox_metric_tags_rated', 'rating');
 
 	const stats = $derived(
 		dsctx.data
-			? computetags(dsctx.data, tagminthreshold, tagHighlightMetric)
+			? computetags(dsctx.data, tagminthreshold, tagHighlightMetric.value)
 			: null
 	);
 
@@ -44,15 +45,15 @@
 
 	$effect(() => {
 		if (dsctx.data && highlightopts.length > 0) {
-			if (!highlightopts.some((o) => o.id === tagHighlightMetric)) {
+			if (!highlightopts.some((o) => o.id === tagHighlightMetric.value)) {
 				const hasRating = highlightopts.some((o) => o.id === 'rating');
 				const hasLiked = highlightopts.some((o) => o.id === 'liked');
 				if (hasRating) {
-					tagHighlightMetric = 'rating';
+					tagHighlightMetric.value = 'rating';
 				} else if (hasLiked) {
-					tagHighlightMetric = 'liked';
+					tagHighlightMetric.value = 'liked';
 				} else {
-					tagHighlightMetric = 'count';
+					tagHighlightMetric.value = 'count';
 				}
 			}
 		}
@@ -60,9 +61,9 @@
 
 	$effect(() => {
 		if (dsctx.data && ratedopts.length > 0) {
-			const hasCurrent = ratedopts.some((o) => o.id === ratedmetric);
+			const hasCurrent = ratedopts.some((o) => o.id === ratedmetric.value);
 			if (!hasCurrent) {
-				ratedmetric = ratedopts[0].id;
+				ratedmetric.value = ratedopts[0].id;
 			}
 		}
 	});
@@ -106,8 +107,8 @@
 			: []
 	);
 
-	const activerows = $derived(ratedmetric === 'liked' ? likedrows : ratingrows);
-	const activelist = $derived(ratedmetric === 'liked' ? stats?.byliked ?? [] : stats?.byrating ?? []);
+	const activerows = $derived(ratedmetric.value === 'liked' ? likedrows : ratingrows);
+	const activelist = $derived(ratedmetric.value === 'liked' ? stats?.byliked ?? [] : stats?.byrating ?? []);
 </script>
 
 {#if !stats}
@@ -191,9 +192,9 @@
 				liked: th.liked,
 				top: th.top
 			}))}
-			metric={tagHighlightMetric}
+			metric={tagHighlightMetric.value}
 			metricOptions={highlightopts}
-			onchange={(v: 'rating' | 'liked' | 'count') => (tagHighlightMetric = v)}
+			onchange={(v: 'rating' | 'liked' | 'count') => (tagHighlightMetric.value = v)}
 		/>
 
 		<!-- two lists -->
@@ -204,17 +205,17 @@
 					<ListExpansion total={stats.bycount.length} bind:limit />
 				{/if}
 			</Card>
-			<Card title={ratedmetric === 'liked' ? 'Most liked' : 'By avg rating'}>
+			<Card title={ratedmetric.value === 'liked' ? 'Most liked' : 'By avg rating'}>
 				{#snippet actions()}
 					{#if ratedopts.length > 1}
-						<MetricToggle value={ratedmetric} onchange={(v) => (ratedmetric = v)} options={ratedopts} />
+						<MetricToggle value={ratedmetric.value} onchange={(v) => (ratedmetric.value = v)} options={ratedopts} />
 					{/if}
 				{/snippet}
 				<BarList
 					rows={activerows}
 					accent="var(--accent-amber)"
 					showrank={true}
-					format={ratedmetric === 'liked' ? (v) => v.toLocaleString('en-US') : (v) => v.toFixed(1) + '★'}
+					format={ratedmetric.value === 'liked' ? (v) => v.toLocaleString('en-US') : (v) => v.toFixed(1) + '★'}
 				/>
 				<ListExpansion total={activelist.length} bind:limit />
 			</Card>
