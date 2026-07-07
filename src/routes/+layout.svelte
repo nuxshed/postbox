@@ -71,7 +71,8 @@
 		{ label: 'Genres', href: '/genres' },
 		{ label: 'People', href: '/people' },
 		{ label: 'Tags', href: '/tags' },
-		{ label: 'Films', href: '/films' }
+		{ label: 'Films', href: '/films' },
+		{ label: 'Graph', href: '/graph' }
 	];
 
 	const TITLES: Record<string, string> = {
@@ -82,7 +83,8 @@
 		'/genres': 'Genres',
 		'/people': 'People',
 		'/tags': 'Tags',
-		'/films': 'Films'
+		'/films': 'Films',
+		'/graph': 'Graph'
 	};
 
 	const DIRS = [
