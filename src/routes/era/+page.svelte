@@ -108,7 +108,7 @@
 		</Card>
 
 		<!-- release year + seasonal -->
-		<div class="grid gap-[18px]" style="grid-template-columns: 3fr 2fr;">
+		<div class="grid gap-[18px] sm:[grid-template-columns:3fr_2fr]">
 			<Card title="Release year">
 				{#snippet actions()}
 					<MetricToggle value={yearmetric.value} onchange={(v) => (yearmetric.value = v)} options={toggleopts} />

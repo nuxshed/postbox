@@ -140,7 +140,7 @@
 		</Card>
 
 		<!-- country and language highlights -->
-		<div class="grid grid-cols-2 gap-[18px]">
+		<div class="grid grid-cols-1 sm:grid-cols-2 gap-[18px]">
 			<HighlightsCard
 				title="Country highlights"
 				cap="your favourite film from your top countries"
@@ -181,7 +181,7 @@
 		</div>
 
 		<!-- country + language breakdown -->
-		<div class="grid grid-cols-2 gap-[18px] items-start">
+		<div class="grid grid-cols-1 sm:grid-cols-2 gap-[18px] items-start">
 			<Card title="By country">
 				{#snippet actions()}
 					<div class="flex items-center gap-2">

@@ -54,7 +54,7 @@
 	{/snippet}
 
 	<div
-		class="grid gap-[14px]"
+		class="grid gap-[14px] max-sm:[&>:nth-child(7)]:hidden"
 		style="grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));"
 	>
 		{#each items as item (item.label)}

@@ -129,7 +129,7 @@
 {:else}
 	<div class="flex flex-col gap-[18px]">
 		<!-- hero row -->
-		<div class="grid grid-cols-3 gap-4">
+		<div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
 			<section
 				class="rounded-[14px] border border-[var(--border)] p-5 px-[22px] flex flex-col justify-center"
 				style="background: var(--bg-card);"
@@ -221,7 +221,7 @@
 		/>
 
 		<!-- most watched + highest rated/liked -->
-		<div class="grid grid-cols-2 gap-[18px] items-start">
+		<div class="grid grid-cols-1 sm:grid-cols-2 gap-[18px] items-start">
 			<Card title="Most watched">
 				<BarList rows={allwatched.slice(0, countLimit)} accent="var(--accent-blue)" showrank={true} />
 				<ListExpansion total={allwatched.length} bind:limit={countLimit} />

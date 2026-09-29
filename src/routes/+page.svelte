@@ -159,8 +159,7 @@
 	<div class="flex flex-col gap-6">
 		<!-- hero section -->
 		<div
-			class="grid gap-[40px] items-stretch border-b border-[var(--border)] pb-7"
-			style="grid-template-columns: 1.5fr 1fr;"
+			class="grid gap-[40px] items-stretch border-b border-[var(--border)] pb-7 sm:[grid-template-columns:1.5fr_1fr]"
 		>
 			<div class="flex flex-col justify-center">
 				<div
@@ -187,7 +186,7 @@
 				</div>
 			</div>
 			<div
-				class="flex flex-col justify-center gap-[22px] pl-[40px] border-l border-[var(--border)]"
+				class="flex flex-col justify-center gap-[22px] sm:pl-[40px] sm:border-l border-[var(--border)]"
 			>
 				<div>
 					<div
@@ -224,7 +223,7 @@
 		</div>
 
 		<!-- charts row -->
-		<div class="grid grid-cols-2 gap-[18px]">
+		<div class="grid grid-cols-1 sm:grid-cols-2 gap-[18px]">
 			<div
 				class="flex flex-col rounded-[14px] border border-[var(--border)] p-5 px-[22px]"
 				style="background: var(--bg-card);"
@@ -289,7 +288,7 @@
 		</div>
 
 		<!-- lower row -->
-		<div class="grid grid-cols-2 gap-[18px]">
+		<div class="grid grid-cols-1 sm:grid-cols-2 gap-[18px]">
 			<div
 				class="rounded-[14px] border border-[var(--border)] p-5 px-[22px]"
 				style="background: var(--bg-card);"
@@ -344,8 +343,8 @@
 				Insights
 			</h3>
 			<div
-				class="grid gap-px border border-[var(--border)] rounded-[12px] overflow-hidden"
-				style="background: var(--border); grid-template-columns: repeat(4, 1fr);"
+				class="grid grid-cols-2 sm:grid-cols-4 gap-px border border-[var(--border)] rounded-[12px] overflow-hidden"
+				style="background: var(--border);"
 			>
 				{#each stats.insights as it (it.k)}
 					<div class="px-[18px] pt-[18px] pb-5" style="background: var(--bg-card);">
@@ -399,7 +398,7 @@
 		{ v: fmtnum(stats.hourstotal) + 'h', l: 'Hours watched', color: 'var(--accent-amber)' },
 		{ v: String(stats.filmsthisyear), l: 'Films in ' + stats.thisyear, color: 'var(--accent-blue)' }
 	]}
-	<div class="grid gap-4" style="grid-template-columns: repeat(4, 1fr);">
+	<div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
 		{#each heroes as h (h.l)}
 			<div
 				class="flex flex-col justify-center rounded-[14px] border border-[var(--border)] p-5 px-[22px]"
@@ -518,7 +517,7 @@
 		</div>
 
 		<div
-			class="col-span-4 rounded-[14px] border border-[var(--border)] p-5 px-[22px]"
+			class="col-span-2 sm:col-span-4 rounded-[14px] border border-[var(--border)] p-5 px-[22px]"
 			style="background: var(--bg-card);"
 		>
 			<h3
@@ -528,8 +527,8 @@
 				Insights
 			</h3>
 			<div
-				class="grid gap-px border border-[var(--border)] rounded-[12px] overflow-hidden"
-				style="background: var(--border); grid-template-columns: repeat(4, 1fr);"
+				class="grid grid-cols-2 sm:grid-cols-4 gap-px border border-[var(--border)] rounded-[12px] overflow-hidden"
+				style="background: var(--border);"
 			>
 				{#each stats.insights as it (it.k)}
 					<div class="px-[18px] pt-[18px] pb-5" style="background: var(--bg-card);">
@@ -604,15 +603,13 @@
 			color: 'var(--accent-blue)'
 		}
 	]}
-	<div class="grid grid-cols-4 gap-0">
-		{#each heroes as h, i (h.l)}
+	<div class="grid grid-cols-2 sm:grid-cols-4 gap-px sm:gap-0 bg-[var(--border)] sm:bg-transparent">
+		{#each heroes as h (h.l)}
 			<div
-				class="px-7 border-l border-[var(--border)]"
-				class:border-l-0={i === 0}
-				class:pl-0={i === 0}
+				class="p-4 sm:py-0 sm:px-7 sm:first:pl-0 sm:border-l sm:first:border-l-0 border-[var(--border)] bg-[var(--bg)] sm:bg-transparent"
 			>
 				<div
-					class="font-num font-bold text-[58px] leading-[0.9] tracking-[-0.04em]"
+					class="font-num font-bold text-[40px] sm:text-[58px] leading-[0.9] tracking-[-0.04em]"
 					style="color: {h.color};"
 				>
 					{h.v}
@@ -628,7 +625,7 @@
 	<div class="h-px my-[26px]" style="background: var(--border);"></div>
 
 	<!-- 3-col grid -->
-	<div class="grid gap-7" style="grid-template-columns: 1fr 1px 1fr 1px 1fr;">
+	<div class="grid gap-7 sm:[grid-template-columns:1fr_1px_1fr_1px_1fr]">
 		<!-- rating dist -->
 		<div class="min-w-0">
 			<div class="flex items-center justify-between mb-4">
@@ -662,7 +659,7 @@
 			</div>
 		</div>
 
-		<div class="w-px" style="background: var(--border);"></div>
+		<div class="hidden sm:block w-px" style="background: var(--border);"></div>
 
 		<!-- runtime -->
 		<div class="min-w-0">
@@ -687,7 +684,7 @@
 			</div>
 		</div>
 
-		<div class="w-px" style="background: var(--border);"></div>
+		<div class="hidden sm:block w-px" style="background: var(--border);"></div>
 
 		<!-- directors -->
 		<div class="min-w-0">
@@ -720,8 +717,8 @@
 			Insights
 		</h3>
 		<div
-			class="grid gap-px border border-[var(--border)] rounded-[12px] overflow-hidden"
-			style="background: var(--border); grid-template-columns: repeat(4, 1fr);"
+			class="grid grid-cols-2 sm:grid-cols-4 gap-px border border-[var(--border)] rounded-[12px] overflow-hidden"
+			style="background: var(--border);"
 		>
 			{#each stats.insights as it (it.k)}
 				<div class="px-[18px] pt-[18px] pb-5" style="background: var(--bg-card);">

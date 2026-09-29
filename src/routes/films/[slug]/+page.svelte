@@ -69,11 +69,11 @@
 		</a>
 
 		<!-- hero -->
-		<div class="flex gap-8">
+		<div class="flex flex-col sm:flex-row gap-6 sm:gap-8">
 			<!-- poster -->
 			<div
-				class="shrink-0 rounded-[10px] overflow-hidden border border-[var(--border)]"
-				style="width: 180px; aspect-ratio: 2/3; background: var(--bg-card);"
+				class="shrink-0 rounded-[10px] overflow-hidden border border-[var(--border)] w-[130px] sm:w-[180px]"
+				style="aspect-ratio: 2/3; background: var(--bg-card);"
 			>
 				{#if tmdbposter(film.tmdb?.poster)}
 					<img
@@ -94,7 +94,7 @@
 				<div>
 					<div class="flex items-start gap-3">
 						<h2
-							class="font-display font-bold text-[36px] leading-[0.95] tracking-[-0.03em]"
+							class="font-display font-bold text-[24px] sm:text-[36px] leading-[0.95] tracking-[-0.03em]"
 							style="color: var(--text);"
 						>
 							{film.name}
@@ -248,8 +248,7 @@
 				<div class="flex flex-col">
 					{#each entries as e, i (e.watcheddate + '|' + i)}
 						<div
-							class="grid items-center gap-4 py-3 border-t border-[var(--border)]"
-							style="grid-template-columns: 140px 1fr auto;"
+							class="grid items-start sm:items-center gap-2 sm:gap-4 py-3 border-t border-[var(--border)] sm:[grid-template-columns:140px_1fr_auto]"
 						>
 							<span class="font-mono text-[12px]" style="color: var(--text-muted);">{fmtdate(e.watcheddate)}</span>
 							<div class="flex items-center gap-2 flex-wrap">

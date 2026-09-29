@@ -157,7 +157,7 @@
 {:else}
 	<div class="flex flex-col gap-[18px]">
 		<!-- streak + headline row -->
-		<div class="grid gap-[18px]" style="grid-template-columns: 1fr 1fr 2fr;">
+		<div class="grid gap-[18px] sm:[grid-template-columns:1fr_1fr_2fr]">
 			<!-- current streak -->
 			<div
 				class="rounded-[14px] border border-[var(--border)] p-5 px-[22px] flex flex-col gap-1"
@@ -260,7 +260,7 @@
 				</div>
 			{:else}
 				<div
-					class="grid gap-[14px]"
+					class="grid gap-[14px] max-sm:[&>:nth-child(7)]:hidden"
 					style="grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));"
 				>
 					{#each top7films as item (item.uri)}
@@ -321,7 +321,7 @@
 		</Card>
 
 		<!-- rewatch + per-year -->
-		<div class="grid grid-cols-2 gap-[18px]">
+		<div class="grid grid-cols-1 sm:grid-cols-2 gap-[18px]">
 			<Card title="Rewatch statistics">
 				{#snippet actions()}
 					<Infotip text="<strong style='color: var(--text); font-weight: bold; display: block; margin-bottom: 4px;'>Selection priority</strong>Films are ranked by watch count. Ties are broken by rating, then likes, favourites, and finally recency." />

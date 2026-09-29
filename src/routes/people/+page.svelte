@@ -136,7 +136,7 @@
 		</div>
 
 		<!-- hero row -->
-		<div class="grid grid-cols-3 gap-4">
+		<div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
 			<section
 				class="rounded-[14px] border border-[var(--border)] p-5 px-[22px] flex flex-col justify-center"
 				style="background: var(--bg-card);"
@@ -251,7 +251,7 @@
 		</div>
 
 		<!-- two lists -->
-		<div class="grid grid-cols-2 gap-[18px] items-start">
+		<div class="grid grid-cols-1 sm:grid-cols-2 gap-[18px] items-start">
 			<Card title="Most watched">
 				<div class="flex flex-col gap-[9px]">
 					{#each bycount as person, i (person.name + '|' + i)}

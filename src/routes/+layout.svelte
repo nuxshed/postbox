@@ -17,7 +17,13 @@
 	let ready = $state(false);
 	let dir = $state('ledger');
 	let dropdownopen = $state(false);
+	let menuopen = $state(false);
 	let range = $state<rangesel>({ kind: 'all' });
+
+	$effect(() => {
+		pathname;
+		menuopen = false;
+	});
 
 	const filtereddata = $derived(data ? filterbyrange(data, range) : null);
 
@@ -34,6 +40,7 @@
 		cleardataset();
 		data = null;
 		dropdownopen = false;
+		menuopen = false;
 	}
 
 	function clearAllData() {
@@ -41,6 +48,7 @@
 			clearstored();
 			data = null;
 			dropdownopen = false;
+			menuopen = false;
 		}
 	}
 
@@ -129,17 +137,17 @@
 	<div class="min-h-screen flex flex-col" style="background: var(--bg);">
 		<!-- topbar -->
 		<header
-			class="sticky top-0 z-50 flex items-center gap-7 px-8 h-[60px] border-b border-[var(--border)]"
+			class="sticky top-0 z-50 flex items-center gap-3 sm:gap-7 px-4 sm:px-8 h-[60px] border-b border-[var(--border)]"
 			style="background: color-mix(in oklab, var(--bg) 88%, transparent); backdrop-filter: blur(14px) saturate(1.2);"
 		>
-			<a href="{base}/" class="flex items-center gap-[9px] select-none">
+			<a href="{base}/" class="flex items-center gap-[9px] select-none shrink-0">
 				<span
 					class="font-display font-bold text-[20px] tracking-[-0.02em]"
 					style="color: var(--text);">postbox</span
 				>
 			</a>
 
-			<nav class="flex items-center gap-0.5 ml-2">
+			<nav class="hidden md:flex items-center gap-0.5 ml-2">
 				{#each NAV as n (n.href)}
 					{@const active = pathname === n.href}
 					<a
@@ -170,8 +178,26 @@
 				{/each}
 			</nav>
 
-			<!-- user dropdown -->
-			<div class="ml-auto flex items-center relative">
+			<!-- mobile hamburger -->
+			<button
+				class="ml-auto flex md:hidden items-center justify-center w-9 h-9 rounded-[7px] transition-colors"
+				style="color: {menuopen ? 'var(--text)' : 'var(--text-muted)'}; background: {menuopen ? 'var(--bar-track)' : ''};"
+				onclick={() => (menuopen = !menuopen)}
+				aria-label={menuopen ? 'Close menu' : 'Open menu'}
+			>
+				{#if menuopen}
+					<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+						<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+					</svg>
+				{:else}
+					<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+						<line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
+					</svg>
+				{/if}
+			</button>
+
+			<!-- desktop user dropdown -->
+			<div class="ml-auto hidden md:flex items-center relative">
 				<button
 					class="relative text-[13.5px] font-medium tracking-[0.01em] px-3 py-[7px] rounded-[7px] transition-colors cursor-pointer flex items-center gap-1.5 focus:outline-none"
 					style="color: {dropdownopen ? 'var(--text)' : 'var(--text-muted)'}; background: {dropdownopen ? 'var(--bar-track)' : ''};"
@@ -264,20 +290,72 @@
 			</div>
 		</header>
 
+		<!-- mobile menu -->
+		{#if menuopen}
+			<button
+				class="fixed inset-0 z-30 md:hidden"
+				tabindex="-1"
+				onclick={() => (menuopen = false)}
+				aria-label="Close menu"
+			></button>
+			<div
+				class="fixed left-0 right-0 top-[60px] z-40 md:hidden border-b border-[var(--border)] flex flex-col overflow-y-auto"
+				style="background: var(--bg-card); box-shadow: 0 8px 24px rgba(0,0,0,0.4); max-height: calc(100vh - 60px);"
+			>
+				<div class="py-1.5">
+					{#each NAV as n (n.href)}
+						{@const active = pathname === n.href}
+						<a
+							href="{base}{n.href}"
+							class="flex items-center gap-3 px-5 py-[11px] text-[14px] font-medium"
+							style="color: {active ? 'var(--text)' : 'var(--text-muted)'};"
+						>
+							<span
+								class="w-1.5 h-1.5 rounded-full shrink-0"
+								style="background: {active ? 'var(--accent)' : 'transparent'};"
+							></span>
+							{n.label}
+						</a>
+					{/each}
+				</div>
+				<div class="border-t border-[var(--border)] py-1.5">
+					<button
+						class="w-full flex items-center gap-[10px] px-5 py-[11px] text-[13.5px] text-left"
+						style="color: var(--text-muted);"
+						onclick={updatedata}
+					>
+						<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+							<polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.5"/>
+						</svg>
+						Update data
+					</button>
+					<button
+						class="w-full flex items-center gap-[10px] px-5 py-[11px] text-[13.5px] text-left border-t border-[var(--border)]"
+						onclick={clearAllData}
+					>
+						<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" stroke="var(--text-destructive)">
+							<path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M10 11v6M14 11v6"/>
+						</svg>
+						<span style="color: var(--text-destructive);">Clear all & reset</span>
+					</button>
+				</div>
+			</div>
+		{/if}
+
 		<!-- page head (hidden for film detail pages) -->
 		{#if !isfilmdetail}
 		<div class="border-b border-[var(--border)]" style="background: var(--bg);">
 			<div
-				class="max-w-[1280px] mx-auto px-8 pt-[30px] pb-[22px] flex items-end justify-between gap-6"
+				class="max-w-[1280px] mx-auto px-4 sm:px-8 pt-5 sm:pt-[30px] pb-4 sm:pb-[22px] flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between"
 			>
 				<h1
-					class="font-display font-bold text-[40px] tracking-[-0.03em] leading-[0.95]"
+					class="font-display font-bold text-[28px] sm:text-[40px] tracking-[-0.03em] leading-[0.95]"
 					style="color: var(--text);"
 				>
 					{pagetitle}
 				</h1>
 
-				<div class="flex items-center gap-3">
+				<div class="flex items-center gap-3 flex-wrap">
 					{#if isactivity}
 						<div
 							class="flex items-center gap-[4px] p-[3px] rounded-[7px] border border-[var(--border)]"
@@ -391,13 +469,13 @@
 		{/if}
 
 		<!-- content -->
-		<main class="max-w-[1280px] mx-auto px-8 pb-[60px] w-full flex-1 {isfilmdetail ? 'pt-0' : 'pt-7'}">
+		<main class="max-w-[1280px] mx-auto px-4 sm:px-8 pb-[60px] w-full flex-1 {isfilmdetail ? 'pt-0' : 'pt-7'}">
 			{@render children()}
 		</main>
 
 		<!-- footer -->
 		<footer
-			class="max-w-[1280px] mx-auto w-full px-8 py-[22px] pb-9 flex items-center gap-[10px] font-mono text-[11.5px] border-t border-[var(--border)]"
+			class="max-w-[1280px] mx-auto w-full px-4 sm:px-8 py-[22px] pb-9 flex flex-wrap items-center gap-[10px] font-mono text-[11.5px] border-t border-[var(--border)]"
 			style="color: var(--text-dim);"
 		>
 			<span>postbox</span>
@@ -405,7 +483,7 @@
 			<span>{data.films.length.toLocaleString()} films</span>
 			<span class="opacity-50">·</span>
 			<span>{data.diary.length.toLocaleString()} entries logged</span>
-			<span class="flex-1"></span>
+			<span class="hidden sm:flex flex-1"></span>
 			<span class="opacity-80">letterboxdstatstypeshit</span>
 		</footer>
 	</div>
